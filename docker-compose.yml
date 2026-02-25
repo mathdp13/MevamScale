@@ -1,27 +1,18 @@
-name: MevamScale CI
+version: '3.8'
 
-on:
-  push:
-    branches: [ "main" ]
-    
-jobs:
-  build-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install & Build Front
-        run: |
-          cd frontend
-          npm install
-          npm run build
+services:
+  db:
+    image: postgres:15
+    container_name: mevam_scale_db
+    restart: always
+    environment: # Agora está alinhado corretamente!
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
-  build-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Back
-        run: |
-          cd backend
-          npm install
+volumes:
+  pgdata:
