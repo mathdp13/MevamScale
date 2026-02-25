@@ -1,0 +1,27 @@
+name: MevamScale CI
+
+on:
+  push:
+    branches: [ "main" ]
+    
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install & Build Front
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Back
+        run: |
+          cd backend
+          npm install
