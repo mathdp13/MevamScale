@@ -1,16 +1,48 @@
-# React + Vite
+# 🎸 Mevam Scale - Gestão de Voluntários
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+O **Mevam Scale** é um sistema de gestão de escalas desenvolvido para o departamento de música (Worship) da **Mevam Santana**. O projeto visa facilitar a confirmação de presença e organização dos voluntários em cultos e eventos.
 
-Currently, two official plugins are available:
+## 🚀 Tecnologias Utilizadas
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Frontend
+- **React.js** com Vite
+- **Tailwind CSS** (Estilização baseada na identidade visual da Mevam)
+- **Axios** (Integração com API)
 
-## React Compiler
+### Backend
+- **Node.js** com Express
+- **PostgreSQL** (Banco de dados relacional)
+- **JWT** (Autenticação segura)
+- **Bcrypt** (Criptografia de senhas)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Infraestrutura
+- **Docker** & **Docker Compose** (Containerização do banco de dados)
 
-## Expanding the ESLint configuration
+## 🛠️ Status do Projeto
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- [x] Configuração do Banco de Dados (Postgres via Docker)
+- [x] API de Usuários e Login
+- [x] Interface de Login (UI/UX baseada no Mevam Music)
+- [x] Integração Frontend-Backend
+- [ ] Dashboard de Escalas (Em desenvolvimento)
+- [ ] Confirmação de presença via App
+
+## 🔧 Como rodar o projeto
+
+1. **Subir o Banco de Dados:**
+   ```bash
+   docker-compose up
+   ```
+2. ***Rodar o Backend:***
+   ```bash
+   cd backend
+   node index.js
+   ```
+3. ***Rodar o frontend:***
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+   ---------------
+
+   Desenvolvido por Matheus de Paula 🚀
