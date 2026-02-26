@@ -43,6 +43,46 @@ const setupDatabase = async () => {
       );
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS skill_usuarios (
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+        funcao VARCHAR(50), -- Ex: 'Violão', 'Baixo', 'Mesa de som', 'Projeção'
+        PRIMARY KEY (usuario_id, funcao)
+        )
+      `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escalas (
+        id SERIAL PRIMARY KEY,
+        projeto_id INTEGER REFERENCES projetos(id) ON DELETE CASCADE,
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+        data_evento TIMESTAMP NOT NULL,
+        funcao_escalada VARCHAR(50) NOT NULL,
+        confirmado BOOLEAN DEFAULT FALSE
+      );
+    `);
+
+    // tabela de bandas/equipe
+
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS bandas(
+    id SERIAL PRIMARY KEY,
+    projeto_id INTEGER REFERENCES projetos(id) ON DELETE CASCADE,
+    nome_banda VARCHAR(100) NOT NULL
+    );
+  `);
+
+// membros da banda/equipe
+
+await pool.query(`
+   CREATE TABLE IF NOT EXISTS membros_banda (
+    banda_id INTEGER REFERENCES bandas(id) ON DELETE CASCADE,
+    usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+    funcao_na_banda VARCHAR (50),
+    PRIMARY KEY (banda_id, usuario_id)
+    );
+  `);
+
     console.log("✅ Banco de Dados: Tabela de usuários e estrutura Multi-Projeto prontas!");
   } catch (err) {
     console.error("❌ Erro ao configurar o banco:", err.message);
@@ -153,6 +193,76 @@ app.post('/login', async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/usuarios/skill', async (req, res) => {
+  const { usuario_id, funcoes } = req.body; // funcoes deve ser um array: ["Violão", "Som"]
+
+  try {
+    // Limpa o que tinha antes para não dupar
+    await pool.query("DELETE FROM skill_usuarios WHERE usuario_id = $1", [usuario_id]);
+
+    const promessas = funcoes.map(f =>
+      pool.query(
+        "INSERT INTO skill_usuarios (usuario_id, funcao) VALUES ($1, $2)",
+        [usuario_id, f] // 'f'
+      )
+    );
+
+    await Promise.all(promessas);
+
+    res.json({ message: "Perfil de habilidades atualizado!" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+ 
+app.post('/escalas', async (req, res) => {
+  // 1. Chaves adicionadas aqui
+  const { projeto_id, usuario_id, data_evento, funcao_escalada } = req.body;
+
+  try {
+    const novaEscala = await pool.query(
+      `INSERT INTO escalas (projeto_id, usuario_id, data_evento, funcao_escalada) 
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [projeto_id, usuario_id, data_evento, funcao_escalada]
+    );
+
+    res.status(201).json({
+      message: "Nova escala criada com sucesso!",
+      escala: novaEscala.rows[0]
+    });
+  } catch(err) {
+    console.error(err.message);
+    res.status(500).json({ error: "Erro ao criar escala: " + err.message });
+  } 
+}); 
+
+app.post('/escalas/banda', async (req, res) => {
+  const { banda_id, projeto_id, data_evento } = req.body;
+
+  try {
+    // 1. Busca todos os membros que fazem parte dessa banda específica
+    const membros = await pool.query(
+      "SELECT usuario_id, funcao_na_banda FROM membros_banda WHERE banda_id = $1",
+      [banda_id]
+    );
+
+    // 2. Insere todo mundo na tabela de escalas de uma vez só
+    const promessas = membros.rows.map(membro => {
+      return pool.query(
+        `INSERT INTO escalas (projeto_id, usuario_id, data_evento, funcao_escalada) 
+         VALUES ($1, $2, $3, $4)`,
+        [projeto_id, membro.usuario_id, data_evento, membro.funcao_na_banda]
+      );
+    });
+
+    await Promise.all(promessas);
+
+    res.status(201).json({ message: `Sucesso! ${membros.rows.length} voluntários escalados de uma vez.` });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao escalar banda: " + err.message });
   }
 });
 
