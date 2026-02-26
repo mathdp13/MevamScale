@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const pool = require('./db');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 
@@ -92,6 +93,20 @@ await pool.query(`
 //executa as configs do banco ao ligar o servidor
 setupDatabase();
 
+const autenticarToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.status(401).json({ error: "Acesso negado!" });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: "Token inválido!" });
+    req.user = user;
+    next();
+  });
+};
+
+
 app.get('/', (req, res) => {
     res.send("API do MevamScale rodando com sucesso!")
 });
@@ -174,20 +189,28 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ error: "Usuário não encontrado!" });
     }
 
-    // 2. Compara a senha digitada com o Hash que está no banco
+    // 2. Compara a senha
     const senhaValida = await bcrypt.compare(senha, usuario.rows[0].senha);
 
     if (!senhaValida) {
       return res.status(401).json({ error: "Senha incorreta!" });
     }
 
-    // 3. Se deu tudo certo
+    // 3. Gera o Token (o "crachá")
+    const token = jwt.sign(
+      { id: usuario.rows[0].id, permissao: usuario.rows[0].permissao },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    // 4. Retorna o Token + Dados do Usuário
     res.json({
       message: "Login realizado com sucesso!",
+      token,
       user: {
         id: usuario.rows[0].id,
         nome: usuario.rows[0].nome,
-        email: usuario.rows[0].email
+        permissao: usuario.rows[0].permissao
       }
     });
 
@@ -218,7 +241,7 @@ app.post('/usuarios/skill', async (req, res) => {
   }
 });
  
-app.post('/escalas', async (req, res) => {
+app.post('/escalas', autenticarToken,async (req, res) => {
   // 1. Chaves adicionadas aqui
   const { projeto_id, usuario_id, data_evento, funcao_escalada } = req.body;
 
@@ -239,7 +262,30 @@ app.post('/escalas', async (req, res) => {
   } 
 }); 
 
-app.post('/escalas/banda', async (req, res) => {
+app.post('/bandas', async (req, res) => {
+  const { projeto_id, nome_banda } = req.body;
+  try {
+    const novaBanda = await pool.query(
+      "INSERT INTO bandas (projeto_id, nome_banda) VALUES ($1, $2) RETURNING *",
+      [projeto_id, nome_banda]
+    );
+    res.json(novaBanda.rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Adicionar um voluntário a uma banda específica
+app.post('/bandas/membros', async (req, res) => {
+  const { banda_id, usuario_id, funcao_na_banda } = req.body;
+  try {
+    await pool.query(
+      "INSERT INTO membros_banda (banda_id, usuario_id, funcao_na_banda) VALUES ($1, $2, $3)",
+      [banda_id, usuario_id, funcao_na_banda]
+    );
+    res.json({ message: "Membro adicionado à banda!" });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/escalas/banda', autenticarToken, async (req, res) => {
   const { banda_id, projeto_id, data_evento } = req.body;
 
   try {
@@ -264,6 +310,28 @@ app.post('/escalas/banda', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: "Erro ao escalar banda: " + err.message });
   }
+});
+
+app.patch('/escalas/:id/confirmar', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query("UPDATE escalas SET confirmado = TRUE WHERE id = $1", [id]);
+    res.json({ message: "Presença confirmada!" });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/escalas/:projeto_id', async (req, res) => {
+  const { projeto_id } = req.params;
+  try {
+    const escala = await pool.query(
+      `SELECT e.id, u.nome, e.data_evento, e.funcao_escalada, e.confirmado 
+       FROM escalas e 
+       JOIN usuarios u ON e.usuario_id = u.id 
+       WHERE e.projeto_id = $1 ORDER BY e.data_evento`,
+      [projeto_id]
+    );
+    res.json(escala.rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // porta q vai ouvir as request

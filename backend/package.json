@@ -69,6 +69,7 @@
     "json-schema-traverse": "^0.4.1",
     "json-stable-stringify-without-jsonify": "^1.0.1",
     "json5": "^2.2.3",
+    "jsonwebtoken": "^9.0.3",
     "keyv": "^4.5.4",
     "levn": "^0.4.1",
     "locate-path": "^6.0.0",
