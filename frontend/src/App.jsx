@@ -7,17 +7,25 @@ function App() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+      const toatId = toast.loading('Autenticando...');
     try {
       const response = await api.post('/login', { email, senha });
+
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      if (response.data.user.onboardingDone) {
-        navigate('/escalas');
-      } else {
-        navigate('/questionario')
-      }
+
+      toast.sucess(`Bem-vindo, ${response.data.user.nome}!`, { id: toastId });
+
+      ssetTimeout(() => {
+        if (response.data.user.onboardingDone) {
+          navigate('/escalas');
+        } else {
+          navigate('/questionario');
+        }
+      }, 1000);
+
     } catch (error) {
-      alert("Erro ao logar! Verifique suas credenciais.");
+      toast.error("E-mail ou senha inválidos!", { id: toastId });
     }
   };
 
