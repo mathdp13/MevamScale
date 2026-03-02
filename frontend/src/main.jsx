@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App.jsx'
-import Questionario from './Questionario.jsx' // Criaremos esse arquivo a seguir
+import Questionario from './Questionario.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
