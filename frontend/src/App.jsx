@@ -10,9 +10,14 @@ function App() {
     try {
       const response = await api.post('/login', { email, senha });
       localStorage.setItem('token', response.data.token);
-      alert("Login realizado!");
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+      if (response.data.user.onboardingDone) {
+        navigate('/escalas');
+      } else {
+        navigate('/questionario')
+      }
     } catch (error) {
-      alert("Erro ao logar!");
+      alert("Erro ao logar! Verifique suas credenciais.");
     }
   };
 

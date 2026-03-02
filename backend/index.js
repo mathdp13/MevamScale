@@ -210,7 +210,8 @@ app.post('/login', async (req, res) => {
       user: {
         id: usuario.rows[0].id,
         nome: usuario.rows[0].nome,
-        permissao: usuario.rows[0].permissao
+        permissao: usuario.rows[0].permissao,
+        onboardingDone: usuario.rows[0].onboarding_done
       }
     });
 
@@ -238,6 +239,28 @@ app.post('/usuarios/skill', async (req, res) => {
     res.json({ message: "Perfil de habilidades atualizado!" });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.put(`/usuarios/perfil`, async (req,res) => {
+  const { instrumento, userId } = req.body;
+
+  try {
+    const result = await pool.query(
+          `UPDATE usuarios
+          SET instrumento = $1, onboarding_done = TRUE
+          WHERE id = $2
+          RETURNING id, nome, instrumento, onboarding_done`,
+          [instrumento, userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario não encontrado!" });
+    }
+
+    res.json({ message: "Perfil atualizado!", user: result.rows[0] });
+  } catch (err){
+    console.error(err.message);
+    res.status(500).json({ error: "Erro ao salvar perfil!" });
   }
 });
  
@@ -285,7 +308,7 @@ app.post('/bandas/membros', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/escalas/banda', autenticarToken, async (req, res) => {
+app.post('/escalas/banda', autenticarToken,async (req, res) => {
   const { banda_id, projeto_id, data_evento } = req.body;
 
   try {

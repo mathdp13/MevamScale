@@ -89,7 +89,6 @@
     "pg": "^8.19.0",
     "picocolors": "^1.1.1",
     "picomatch": "^4.0.3",
-    "postcss": "^8.5.6",
     "prelude-ls": "^1.2.1",
     "punycode": "^2.3.1",
     "react": "^19.2.4",
@@ -130,5 +129,10 @@
   "bugs": {
     "url": "https://github.com/mathdp13/MevamScale/issues"
   },
-  "homepage": "https://github.com/mathdp13/MevamScale#readme"
+  "homepage": "https://github.com/mathdp13/MevamScale#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.2.1"
+  }
 }

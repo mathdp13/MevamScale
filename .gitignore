@@ -22,3 +22,31 @@ dist-ssr
 *.sln
 *.sw?
 *.env
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.local
+frontend/.env.local
+frontend/.env.*.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker e Banco de Dados
+pgdata/
+docker-data/
+*.db
+*.sqlite
+
+# Cache e Temporários
+.cache/
+.eslintcache
+.stylelintcache
+.vite-inspect
+
+# Build do Frontend
+frontend/dist/
+frontend/build/

@@ -1,10 +1,18 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import App from './App.jsx'
-import './index.css' // Verifique se o nome do arquivo está idêntico aqui
+import Questionario from './Questionario.jsx' // Criaremos esse arquivo a seguir
+import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/questionario" element={<Questionario />} />
+        {/* Adicionaremos a rota /escalas depois */}
+      </Routes>
+    </BrowserRouter>
   </React.StrictMode>,
 )
