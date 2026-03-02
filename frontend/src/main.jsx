@@ -11,7 +11,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/questionario" element={<Questionario />} />
-        {/* Adicionaremos a rota /escalas depois */}
+        {}
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,
