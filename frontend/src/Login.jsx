@@ -16,14 +16,19 @@ function Login() {
 
     try {
       const response = await api.post('/login', { email, senha });
+
+      console.log("Resposta do servidor:", response.data.user);
+
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
+
       toast.success(`Bem-vindo, ${response.data.user.nome}!`, { id: toastId });
 
       setTimeout(() => {
-        if (response.data.user.onboardingDone) {
+        if (response.data.user.onboardingDone == true) {
           navigate('/escalas');
         } else {
+          console.log("Redirecionando para questionário...");   
           navigate('/questionario');
         }
       }, 1000);
@@ -67,7 +72,7 @@ function Login() {
             <p className="text-sm text-gray-500">
               Não tem uma conta?{' '}
               <button type="button" onClick={() => navigate('/registro')} className="text-[#0a1a33] font-bold hover:underline underline-offset-4">
-                se registre aqui
+                Se registre aqui
               </button>
             </p>
           </div>

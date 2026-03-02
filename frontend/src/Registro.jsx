@@ -46,7 +46,6 @@ function Registro() {
             <input 
               required type="text" 
               className="w-full border-b border-gray-100 p-2 focus:border-[#0a1a33] outline-none transition-all text-gray-700 text-sm"
-              placeholder="Ex: Matheus de Paula"
               value={nome} onChange={e => setNome(e.target.value)}
             />
           </div>
