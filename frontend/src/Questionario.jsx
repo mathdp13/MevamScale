@@ -27,7 +27,7 @@ function Questionario() {
 
     try {
       await api.put('/usuarios/perfil', { 
-        instrumentos: funcoesSelecionadas, 
+        instrumentos: funcoesSelecionadas.join(', '), 
         userId: user.id 
       });
 
