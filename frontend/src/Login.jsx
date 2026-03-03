@@ -2,11 +2,27 @@ import { useState } from 'react';
 import api from './services/api';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
+import { GoogleLogin } from '@react-oauth/google';
 
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+
+  const handleAuthSuccess = (data, toastId) => {
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+
+    toast.success(`Bem vindo, ${data.user.nome}!`, { id: toastId});
+
+    setTimeout(() => {
+      if (data.user.onboardingDone == true) {
+        navigate('/escalas');
+      } else {
+        navigate('/questionario');
+      }
+    }, 1000);
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -17,23 +33,22 @@ function Login() {
     try {
       const response = await api.post('/login', { email, senha });
 
-      console.log("Resposta do servidor:", response.data.user);
-
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-
-      toast.success(`Bem-vindo, ${response.data.user.nome}!`, { id: toastId });
-
-      setTimeout(() => {
-        if (response.data.user.onboardingDone == true) {
-          navigate('/escalas');
-        } else {
-          console.log("Redirecionando para questionário...");   
-          navigate('/questionario');
-        }
-      }, 1000);
+      handleAuthSuccess(response.data, toastId);
+      
     } catch (error) {
       toast.error("E-mail ou senha inválidos!", { id: toastId });
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const toastId = toast.loading('Autenticando com o Google...');
+    try {
+      const response = await api.post('/login/google', {
+        token: credentialResponse.credential
+      });
+      handleAuthSuccess(response.data, toastId);
+    } catch (error) {
+      toast.error("Erro ao autenticar com o Google.", { id: toastId });
     }
   };
 
@@ -68,6 +83,17 @@ function Login() {
           <button type="submit" className="w-full bg-[#0a1a33] text-white font-bold py-4 rounded-xl hover:bg-[#112a52] transition-all shadow-lg active:scale-95 mt-4">
             ENTRAR
           </button>
+          <div className="relative flex items-center py-2">
+            <div className="flex-grow border-t border-gray-200"></div>
+            <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase font-bold tracking-widest">OU</span>
+            <div className="flex-grow border-t border-gray-200"></div>
+          </div>
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+               onError={() => toast.error("Erro ao se autenticar com o Google!")}
+            />
+          </div>
           <div className="text-center mt-6">
             <p className="text-sm text-gray-500">
               Não tem uma conta?{' '}

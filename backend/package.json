@@ -53,6 +53,7 @@
     "gensync": "^1.0.0-beta.2",
     "glob-parent": "^6.0.2",
     "globals": "^16.5.0",
+    "google-auth-library": "^10.6.1",
     "has-flag": "^4.0.0",
     "hermes-estree": "^0.25.1",
     "hermes-parser": "^0.25.1",

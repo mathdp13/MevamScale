@@ -11,7 +11,7 @@ function Registro() {
 
   const handleRegistro = async (e) => {
     e.preventDefault();
-    const loadId = toast.loading('Criando sua conta de voluntário...');
+    const loadId = toast.loading('Criando sua conta...');
 
     try {
 

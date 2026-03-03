@@ -3,6 +3,8 @@ const cors = require('cors');
 const pool = require('./db');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const app = express();
 
@@ -19,12 +21,17 @@ const setupDatabase = async () => {
         id SERIAL PRIMARY KEY,
         nome VARCHAR(100) NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
-        senha VARCHAR(255) NOT NULL,
-        permissao VARCHAR(20) CHECK (permissao IN ('admin', 'som', 'projecao', 'louvor', 'voluntario')) DEFAULT 'voluntario'
+        senha VARCHAR(255), -- Removi o NOT NULL daqui
+        permissao VARCHAR(20) CHECK (permissao IN ('admin', 'som', 'projecao', 'louvor', 'voluntario')) DEFAULT 'voluntario',
+        onboarding_done BOOLEAN DEFAULT FALSE, -- Adicionei essa coluna que faltava
+        google_id VARCHAR(255) -- Adicionei aqui também
       );
     `);
 
-    // 2. Tabela de Projetos (Ex: Mevam Santana, Diaconia)
+    await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)`);
+    await pool.query(`ALTER TABLE usuarios ALTER COLUMN senha DROP NOT NULL`);
+    await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN DEFAULT FALSE`);
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS projetos (
         id SERIAL PRIMARY KEY,
@@ -32,7 +39,6 @@ const setupDatabase = async () => {
       );
     `);
 
-    // 3. Tabela de Vínculo (Onde mora a permissão específica de cada projeto)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS membros_projeto (
         usuario_id INTEGER REFERENCES usuarios(id),
@@ -217,6 +223,56 @@ app.post('/login', async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/login/google', async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    // 1. Valida o token com o Google
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    
+    const payload = ticket.getPayload();
+    const { email, name, sub } = payload;
+
+    // 2. Busca o usuário no banco
+    let usuario = await pool.query("SELECT * FROM usuarios WHERE email = $1", [email]);
+
+    // 3. Se não existe, cria (Auto-registro)
+    if (usuario.rows.length === 0) {
+      const novo = await pool.query(
+        "INSERT INTO usuarios (nome, email, google_id, onboarding_done) VALUES ($1, $2, $3, FALSE) RETURNING *",
+        [name, email, sub]
+      );
+      usuario = novo;
+    }
+
+    // 4. Gera o JWT do MevamScale
+    const tokenSistema = jwt.sign(
+      { id: usuario.rows[0].id, permissao: usuario.rows[0].permissao },
+      process.env.JWT_SECRET,
+      { expiresIn: '1d' }
+    );
+
+    // 5. Retorna os dados para o Frontend
+    res.json({
+      message: "Login via Google realizado!",
+      token: tokenSistema,
+      user: {
+        id: usuario.rows[0].id,
+        nome: usuario.rows[0].nome,
+        permissao: usuario.rows[0].permissao,
+        onboardingDone: usuario.rows[0].onboarding_done
+      }
+    });
+
+  } catch (err) {
+    console.error("Erro no Google Auth:", err.message);
+    res.status(401).json({ error: "Falha na autenticação com Google." });
   }
 });
 

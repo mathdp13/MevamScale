@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // Alterado de localhost para o IP físico da minha maquina
-  baseURL: import.meta.env.VITE_API_URL,
+
+  baseURL: 'http://localhost:3001',
 });
 
 // Anexa JWT em toda chamada
