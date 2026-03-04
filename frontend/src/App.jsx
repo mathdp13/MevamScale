@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Login from './Login';
-import Registro from './Registro';
-import Questionario from './Questionario';
+import Login from './pages/Login';
+import Registro from './pages/Registro';
+import Perfil from './pages/Perfil';
+import Home from './pages/Home';
+import Ministerios from './pages/Home';
 
-// 🛡️ Componente de Segurança (Só deixa passar se tiver Token)
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   return token ? children : <Navigate to="/" />;
@@ -12,16 +13,32 @@ const PrivateRoute = ({ children }) => {
 function App() {
   return (
     <Routes>
-      {/* Rotas Públicas */}
       <Route path="/" element={<Login />} />
       <Route path="/registro" element={<Registro />} />
 
-      {/* Rotas Protegidas (Precisa de Login) */}
       <Route 
-        path="/questionario" 
+        path="/home" 
         element={
           <PrivateRoute>
-            <Questionario />
+            <Home />
+          </PrivateRoute>
+        } 
+      />
+
+      <Route 
+        path="/ministerios" 
+        element={
+          <PrivateRoute>
+            <Ministerios />
+          </PrivateRoute>
+        } 
+      />
+
+      <Route 
+        path="/perfil" 
+        element={
+          <PrivateRoute>
+            <Perfil />
           </PrivateRoute>
         } 
       />
@@ -35,7 +52,6 @@ function App() {
         } 
       />
 
-      {/* Se tentar acessar qualquer coisa sem estar na lista, volta pro Login */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   );

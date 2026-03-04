@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import api from './services/api';
+import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
@@ -16,11 +16,7 @@ function Login() {
     toast.success(`Bem vindo, ${data.user.nome}!`, { id: toastId});
 
     setTimeout(() => {
-      if (data.user.onboardingDone == true) {
-        navigate('/escalas');
-      } else {
-        navigate('/questionario');
-      }
+      navigate ('/home');
     }, 1000);
   };
 

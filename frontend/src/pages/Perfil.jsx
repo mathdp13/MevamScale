@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from './services/api';
+import api from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
 
-function Questionario() {
+function Perfil() {
   const navigate = useNavigate();
   const [funcoesSelecionadas, setFuncoesSelecionadas] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -26,9 +26,9 @@ function Questionario() {
     setLoading(true);
 
     try {
-      await api.put('/usuarios/perfil', { 
-        instrumentos: funcoesSelecionadas.join(', '), 
-        userId: user.id 
+      await api.post('/usuarios/skills', { 
+        funcoes: funcoesSelecionadas,
+        usuario_id: user.id
       });
 
       const updatedUser = { ...user, onboardingDone: true };
@@ -37,7 +37,7 @@ function Questionario() {
       toast.success("Perfil configurado com sucesso!", { id: toastId });
       
       setTimeout(() => {
-        navigate('/escalas');
+        navigate('/home');
       }, 1500);
 
     } catch (error) {
@@ -91,4 +91,4 @@ function Questionario() {
   );
 }
 
-export default Questionario;
+export default Perfil;

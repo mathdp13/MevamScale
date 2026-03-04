@@ -296,30 +296,24 @@ app.post('/login/google', async (req, res) => {
   }
 });
 
-app.post('/usuarios/skill', async (req, res) => {
+app.post('/usuarios/skills', async (req, res) => {
   const { usuario_id, funcoes } = req.body;
   try {
     await pool.query("DELETE FROM skill_usuarios WHERE usuario_id = $1", [usuario_id]);
-    const promessas = funcoes.map(f => pool.query("INSERT INTO skill_usuarios (usuario_id, funcao) VALUES ($1, $2)", [usuario_id, f]));
-    await Promise.all(promessas);
-    res.json({ message: "Perfil atualizado!" });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.put(`/usuarios/perfil`, async (req,res) => {
-  const { instrumento, userId } = req.body;
-  try {
-    const result = await pool.query(
-      `UPDATE usuarios SET instrumento = $1, onboarding_done = TRUE WHERE id = $2 RETURNING id, nome, instrumento, onboarding_done`,
-      [instrumento, userId]
+    
+    const promessas = funcoes.map(f => 
+      pool.query("INSERT INTO skill_usuarios (usuario_id, funcao) VALUES ($1, $2)", [usuario_id, f])
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: "Usuario não encontrado!" });
-    res.json({ message: "Perfil atualizado!", user: result.rows[0] });
-  } catch (err){
-    res.status(500).json({ error: "Erro ao salvar perfil!" });
+    await Promise.all(promessas);
+
+    await pool.query("UPDATE usuarios SET onboarding_done = TRUE WHERE id = $1", [usuario_id]);
+
+    res.json({ message: "Perfil e Habilidades atualizados com sucesso!" });
+  } catch (err) { 
+    res.status(500).json({ error: "Erro ao salvar skills: " + err.message }); 
   }
 });
- 
+
 app.post('/escalas', autenticarToken,async (req, res) => {
   const { projeto_id, usuario_id, data_evento, funcao_escalada } = req.body;
   try {
