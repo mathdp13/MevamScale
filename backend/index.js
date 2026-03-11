@@ -369,7 +369,25 @@ app.get('/escalas/:projeto_id', async (req, res) => {
       [projeto_id]
     );
     res.json(escala.rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/usuarios/:id/ministerios', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const query = `
+      SELECT m.* FROM ministerios m
+      LEFT JOIN membros_ministerio mm ON m.id = mm.ministerio_id
+      WHERE m.lider_id = $1 OR mm.usuario_id = $1
+      GROUP BY m.id
+    `;
+    const result = await pool.query(query, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ==========================================
