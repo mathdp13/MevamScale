@@ -10,7 +10,8 @@ const app = express();
 
 // middlewares
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ==========================================
 // 1. FUNÇÃO AUXILIAR (Gerador de Código)
@@ -42,8 +43,10 @@ const setupDatabase = async () => {
     await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)`);
     await pool.query(`ALTER TABLE usuarios ALTER COLUMN senha DROP NOT NULL`);
     await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS onboarding_done BOOLEAN DEFAULT FALSE`);
-
-    // --- 🟢 INÍCIO DA ESTRUTURA NOVA (MINISTÉRIOS) ---
+    await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto_url TEXT`);
+    await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS telefone VARCHAR(20)`);
+    await pool.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS data_nascimento DATE`);
+    
     await pool.query(`
       CREATE TABLE IF NOT EXISTS ministerios (
         id SERIAL PRIMARY KEY,
@@ -65,7 +68,6 @@ const setupDatabase = async () => {
         UNIQUE(usuario_id, ministerio_id)
       );
     `);
-    // --- 🟢 FIM DA ESTRUTURA NOVA ---
 
     // Estruturas antigas (Projetos, Escalas, Bandas)!
     await pool.query(`
@@ -311,6 +313,56 @@ app.post('/usuarios/skills', async (req, res) => {
     res.json({ message: "Perfil e Habilidades atualizados com sucesso!" });
   } catch (err) { 
     res.status(500).json({ error: "Erro ao salvar skills: " + err.message }); 
+  }
+});
+
+app.get('/usuarios/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await pool.query(
+      "SELECT id, nome, email, foto_url, telefone, data_nascimento, onboarding_done FROM usuarios WHERE id = $1", 
+      [id]
+    );
+    if (user.rows.length === 0) return res.status(404).json({ error: "Usuário não encontrado" });
+    res.json(user.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar usuário." });
+  }
+});
+
+app.put('/usuarios/:id', async (req, res) => {
+  const { id } = req.params;
+  const { nome, foto_url, telefone, data_nascimento } = req.body;
+
+  try {
+    const result = await pool.query(
+    `UPDATE usuarios 
+     SET nome = $1, 
+        foto_url = $2, 
+        telefone = $3, 
+        data_nascimento = NULLIF($4, '')::DATE
+     WHERE id = $5 RETURNING *`,
+     [nome, foto_url, telefone, data_nascimento, id]
+    );
+    res.json({ message: "Sucesso!"});
+  } catch (err) {
+    console.error("ERRO NO BANCO", err.message);
+    res.status(500).json({ error: err.message});
+  }
+});
+
+app.get('/ministerios/:id/membros', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const membros = await pool.query(`
+      SELECT u.id, u.nome, u.foto_url, mm.permissao, mm.funcao_personalizada 
+      FROM membros_ministerio mm
+      JOIN usuarios u ON mm.usuario_id = u.id
+      WHERE mm.ministerio_id = $1
+    `, [id]);
+    res.json(membros.rows);
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao buscar membros." });
   }
 });
 

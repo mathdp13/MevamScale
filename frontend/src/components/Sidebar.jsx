@@ -1,8 +1,38 @@
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import api from '../services/api';
 
 const Sidebar = () => {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [user, setUser] = useState({});
+
+  useEffect(() => {
+    const carregarDados = async () => {
+      const dadosLocal = JSON.parse(localStorage.getItem('user') || '{}');
+      setUser(dadosLocal);
+
+      if (dadosLocal.id) {
+        try {
+          const res = await api.get(`/usuarios/${dadosLocal.id}`);
+          if (res.data.foto_url) {
+            setUser(prev => ({ ...prev, foto_url: res.data.foto_url }));
+            try {
+              localStorage.setItem('user', JSON.stringify({ 
+                ...dadosLocal, 
+                foto_url: res.data.foto_url 
+              }));
+            } catch (e) {
+              console.warn("Storage cheio, foto carregada só em memória.");
+            }
+          }
+        } catch (err) {
+          console.error("Erro ao recuperar foto:", err);
+        }
+      }
+    };
+
+    carregarDados();
+  }, []);
 
   const menuItems = [
     { label: 'Início', icon: '🕒', path: '/home' },
@@ -11,22 +41,29 @@ const Sidebar = () => {
 
   return (
     <aside className="w-64 bg-[#0a1a33] h-screen flex flex-col border-r border-white/5 fixed left-0 top-0">
-      {/* BOLINHA PERFIL */}
       <div 
         onClick={() => navigate('/perfil')}
         className="p-8 flex items-center gap-4 cursor-pointer hover:bg-white/5 transition-all group"
       >
-        <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-lg group-hover:scale-110 transition-all">
-          {user.nome?.charAt(0).toUpperCase()}
+        <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-lg group-hover:scale-110 transition-all overflow-hidden border border-white/10 shrink-0">
+          {user.foto_url ? (
+            <img 
+              src={user.foto_url} 
+              alt="Perfil" 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-xl">{user.nome?.charAt(0).toUpperCase()}</span>
+          )}
         </div>
+        
         <div className="overflow-hidden">
           <p className="text-white font-bold text-sm truncate">{user.nome}</p>
           <p className="text-gray-500 text-[10px] uppercase tracking-widest">Ver Perfil</p>
         </div>
       </div>
 
-      {/* LINKS */}
-      <nav className="flex-grow px-4">
+      <nav className="flex-grow px-4 mt-4">
         {menuItems.map((item) => (
           <button
             key={item.label}
@@ -39,7 +76,6 @@ const Sidebar = () => {
         ))}
       </nav>
 
-      {/* SAIR */}
       <div className="p-6 border-t border-white/5">
         <button 
           onClick={() => { localStorage.clear(); navigate('/'); }}
