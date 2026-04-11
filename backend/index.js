@@ -124,6 +124,27 @@ const setupDatabase = async () => {
       );
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ministerio_funcoes (
+        id SERIAL PRIMARY KEY,
+        ministerio_id INTEGER REFERENCES ministerios(id) ON DELETE CASCADE,
+        nome VARCHAR(100) NOT NULL, 
+        emoji VARCHAR(10) DEFAULT '👤',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      ALTER TABLE membros_ministerio 
+      ADD COLUMN IF NOT EXISTS funcao_id INTEGER REFERENCES ministerio_funcoes(id) ON DELETE SET NULL;
+    `);
+
+    
+    await pool.query(`
+      ALTER TABLE ministerios 
+      ADD COLUMN IF NOT EXISTS categoria VARCHAR(50) DEFAULT 'Geral';
+    `);
+
     console.log("✅ Banco de Dados: Tabelas antigas e ESTRUTURA NOVA DE MINISTÉRIOS prontas!");
   } catch (err) {
     console.error("❌ Erro ao configurar o banco:", err.message);

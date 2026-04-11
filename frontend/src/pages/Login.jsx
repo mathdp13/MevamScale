@@ -54,10 +54,10 @@ function Login() {
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="bg-[#0a1a33] py-10 text-center">
           <h1 className="text-white text-3xl font-bold tracking-tighter">
-            MEVAM <span className="font-light opacity-70">SANTANA</span>
+            MEVAM <span className="font-light opacity-70">SCALE</span>
           </h1>
         </div>
-        <form onSubmit={handleLogin} className="p-8 space-y-6">
+        <form onSubmit={handleLogin} className="p-8 space-y-6"> 
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">E-mail</label>
             <input 
