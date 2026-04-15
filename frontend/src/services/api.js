@@ -1,8 +1,11 @@
 import axios from 'axios';
 
+const isLocalhost = window.location.hostname === 'localhost';
+
+
 const api = axios.create({
 
-  baseURL: 'http://localhost:3001',
+  baseURL: isLocalhost ? 'http://localhost:3001' : '/api',
 });
 
 // Anexa JWT em toda chamada
