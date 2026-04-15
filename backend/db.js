@@ -1,12 +1,13 @@
 const { Pool } = require('pg');
-require('dotenv').config({ path: '../.env' });
-
-const isProduction = process.env.NODE_ENV === 'production';
+// Só carrega dotenv localmente
+if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config({ path: '../.env' });
+}
 
 const poolConfig = process.env.DATABASE_URL 
   ? { 
       connectionString: process.env.DATABASE_URL,
-      ssl: isProduction ? { rejectUnauthorized: false } : false 
+      ssl: { rejectUnauthorized: false } 
     }
   : {
       user: process.env.DB_USER || 'postgres',
@@ -17,5 +18,10 @@ const poolConfig = process.env.DATABASE_URL
     };
 
 const pool = new Pool(poolConfig);
+
+// Log de diagnóstico
+pool.on('error', (err) => {
+    console.error(' Erro inesperado no cliente do banco:', err);
+});
 
 module.exports = pool;
