@@ -466,7 +466,14 @@ app.get('/usuarios/:id/ministerios', async (req, res) => {
 // ==========================================
 // 5. INICIALIZAÇÃO DO SERVIDOR
 // ==========================================
-const PORT = 3001;
+
+module.exports = app;
+
+if (process.env.NODE_ENV !== 'production') {
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor conversando com a porta!${PORT}`)
 });
+
+}
