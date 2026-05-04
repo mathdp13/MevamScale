@@ -117,7 +117,16 @@ const run = async () => {
       );
     `);
 
-    console.log('✅ Migrations concluídas');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS membro_ministerio_funcoes (
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+        ministerio_id INTEGER REFERENCES ministerios(id) ON DELETE CASCADE,
+        funcao_id INTEGER REFERENCES ministerio_funcoes(id) ON DELETE CASCADE,
+        PRIMARY KEY (usuario_id, ministerio_id, funcao_id)
+      );
+    `);
+
+    console.log('Migrations concluidas');
   } catch (err) {
     console.error('❌ Erro nas migrations:', err.message);
     throw err;
