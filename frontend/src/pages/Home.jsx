@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 
 function Ministerios() {
+  const navigate = useNavigate();
   const [meusMinisterios, setMeusMinisterios] = useState([]);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [showModalCriar, setShowModalCriar] = useState(false);
@@ -75,8 +77,9 @@ function Ministerios() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {meusMinisterios.map((min) => (
-            <div 
+            <div
               key={min.id}
+              onClick={() => navigate(`/ministerio/${min.id}`)}
               className="bg-[#0a1a33] p-8 rounded-[2rem] border border-white/5 hover:border-blue-500/30 transition-all cursor-pointer group"
             >
               <h3 className="text-xl font-bold mb-2 group-hover:text-blue-400">{min.nome}</h3>
