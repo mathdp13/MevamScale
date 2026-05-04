@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
+import OnboardingMinisterio from '../components/OnboardingMinisterio';
 
 function Ministerios() {
   const navigate = useNavigate();
@@ -10,8 +11,9 @@ function Ministerios() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [showModalCriar, setShowModalCriar] = useState(false);
   const [showModalEntrar, setShowModalEntrar] = useState(false);
-  const [nomeMinisterio, setNomeMinisterio] = useState ('');
+  const [nomeMinisterio, setNomeMinisterio] = useState('');
   const [codigoAcesso, setCodigoAcesso] = useState('');
+  const [onboardingMinisterioId, setOnboardingMinisterioId] = useState(null);
 
   const carregarMinisterios = async () => {
     try {
@@ -40,18 +42,18 @@ function Ministerios() {
   };
 
   const handleEntrar = async () => {
-    if (!codigoAcesso) return toast.error("Digite o código do ministério para entrar!");
+    if (!codigoAcesso) return toast.error("Digite o codigo do ministerio para entrar!");
     try {
-      await api.post('/ministerios/entrar', {
+      const res = await api.post('/ministerios/entrar', {
         codigo: codigoAcesso.toUpperCase(),
         usuario_id: user.id
       });
-      toast.success("Você entrou no ministério com sucesso!");
       setShowModalEntrar(false);
       setCodigoAcesso('');
       carregarMinisterios();
-    } catch (err) {
-      toast.error("Código inválido ou você já faz parte desse ministério!");
+      setOnboardingMinisterioId(res.data.ministerioId);
+    } catch {
+      toast.error("Codigo invalido ou voce ja faz parte desse ministerio!");
     }
   };
 
@@ -117,6 +119,16 @@ function Ministerios() {
         )}
 
       </main>
+
+      {onboardingMinisterioId && (
+        <OnboardingMinisterio
+          ministerioId={onboardingMinisterioId}
+          onConcluir={() => {
+            setOnboardingMinisterioId(null);
+            carregarMinisterios();
+          }}
+        />
+      )}
     </div>
   );
 }
