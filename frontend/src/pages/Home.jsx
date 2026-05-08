@@ -8,8 +8,10 @@ import OnboardingMinisterio from '../components/OnboardingMinisterio';
 
 function Ministerios() {
   const navigate = useNavigate();
-  const [meusMinisterios, setMeusMinisterios] = useState([]);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const [meusMinisterios, setMeusMinisterios] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ministerios_cache') || '[]'); } catch { return []; }
+  });
   const [showModalCriar, setShowModalCriar] = useState(false);
   const [showModalEntrar, setShowModalEntrar] = useState(false);
   const [nomeMinisterio, setNomeMinisterio] = useState('');
@@ -19,9 +21,10 @@ function Ministerios() {
   const carregarMinisterios = async () => {
     try {
       const res = await api.get(`/usuarios/${user.id}/ministerios`);
-      setMeusMinisterios(res.data);  
+      setMeusMinisterios(res.data);
+      localStorage.setItem('ministerios_cache', JSON.stringify(res.data));
     } catch (err) {
-      console.error("Erro ao carregar os seus ministérios", err);
+      console.error("Erro ao carregar os seus ministerios", err);
     }
   };
 

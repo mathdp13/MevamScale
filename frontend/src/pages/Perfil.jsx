@@ -11,10 +11,10 @@ function Perfil() {
   const fileInputRef = useRef(null);
 
   const [dados, setDados] = useState({
-    nome: '',
+    nome: user.nome || '',
     telefone: '',
     data_nascimento: '',
-    foto_url: '',
+    foto_url: user.foto_url || '',
   });
 
   useEffect(() => {
