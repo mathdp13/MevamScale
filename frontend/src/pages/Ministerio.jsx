@@ -4,6 +4,7 @@ import api from '../services/api';
 import Sidebar from '../components/Sidebar';
 import toast, { Toaster } from 'react-hot-toast';
 import { ArrowLeft, Plus, Trash2, Trash, Pencil, Check, X } from 'lucide-react';
+import BottomNav from '../components/BottomNav';
 
 function Ministerio() {
   const { id } = useParams();
@@ -103,7 +104,7 @@ function Ministerio() {
     return (
       <div className="flex min-h-screen bg-[#050b18]">
         <Sidebar />
-        <main className="ml-64 flex-grow flex flex-col items-center justify-center gap-4 text-gray-500">
+        <main className="lg:ml-64 flex-grow flex flex-col items-center justify-center gap-4 text-gray-500">
           <p>Nao foi possivel carregar o ministerio.</p>
           <button
             onClick={() => { setErro(false); carregar(); }}
@@ -126,7 +127,7 @@ function Ministerio() {
     return (
       <div className="flex min-h-screen bg-[#050b18]">
         <Sidebar />
-        <main className="ml-64 flex-grow flex items-center justify-center text-gray-500">
+        <main className="lg:ml-64 flex-grow flex items-center justify-center text-gray-500">
           Carregando...
         </main>
       </div>
@@ -137,7 +138,7 @@ function Ministerio() {
     <div className="flex min-h-screen bg-[#050b18]">
       <Sidebar />
       <Toaster />
-      <main className="ml-64 flex-grow p-10 text-white">
+      <main className="lg:ml-64 flex-grow p-6 lg:p-10 text-white pb-24 lg:pb-10">
 
         {/* Header */}
         <div className="mb-10">
@@ -280,6 +281,8 @@ function Ministerio() {
           )}
         </div>
       </main>
+
+      <BottomNav />
 
       {showConfirmarExcluir && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">

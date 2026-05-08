@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import BottomNav from '../components/BottomNav';
 import api from '../services/api';
 import { toast } from 'react-hot-toast';
 import OnboardingMinisterio from '../components/OnboardingMinisterio';
@@ -59,9 +60,9 @@ function Ministerios() {
 
   return (
     <div className="flex min-h-screen bg-[#050b18]">
-      <Sidebar /> 
+      <Sidebar />
 
-  <main className="ml-64 flex-grow p-10 text-white">
+      <main className="lg:ml-64 flex-grow p-6 lg:p-10 text-white pb-24 lg:pb-10">
     <header className="mb-10 flex justify-between items-center">
       <div>
         <h1 className="text-3xl font-bold tracking-tighter text-blue-400">Meus Ministérios</h1>
@@ -119,6 +120,8 @@ function Ministerios() {
         )}
 
       </main>
+
+      <BottomNav />
 
       {onboardingMinisterioId && (
         <OnboardingMinisterio

@@ -3,6 +3,7 @@ import api from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
 import { Camera, Plus, Save } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
+import BottomNav from '../components/BottomNav';
 
 function Perfil() {
   const [user] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
@@ -84,7 +85,7 @@ function Perfil() {
   return (
     <div className="flex min-h-screen bg-[#050b18]">
       <Sidebar />
-      <main className="ml-64 flex-grow p-10 text-white">
+      <main className="lg:ml-64 flex-grow p-6 lg:p-10 text-white pb-24 lg:pb-10">
         <Toaster />
         <h1 className="text-3xl font-bold tracking-tighter text-blue-400 mb-10">Meu Perfil</h1>
 
@@ -152,6 +153,7 @@ function Perfil() {
           </button>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 }

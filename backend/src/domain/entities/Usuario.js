@@ -18,10 +18,10 @@ class Usuario {
       nome: this.nome,
       email: this.email,
       permissao: this.permissao,
-      onboardingDone: this.onboardingDone,
-      fotoUrl: this.fotoUrl,
+      onboarding_done: this.onboardingDone,
+      foto_url: this.fotoUrl,
       telefone: this.telefone,
-      dataNascimento: this.dataNascimento,
+      data_nascimento: this.dataNascimento,
     };
   }
 
