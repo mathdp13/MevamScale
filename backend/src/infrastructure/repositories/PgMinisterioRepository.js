@@ -84,6 +84,15 @@ class PgMinisterioRepository {
     return rows;
   }
 
+  async atualizarFuncao({ funcaoId, ministerioId, nome }) {
+    const { rows } = await pool.query(
+      'UPDATE ministerio_funcoes SET nome = $1 WHERE id = $2 AND ministerio_id = $3 RETURNING *',
+      [nome, funcaoId, ministerioId]
+    );
+    if (!rows[0]) throw { status: 404, message: 'Funcao nao encontrada.' };
+    return rows[0];
+  }
+
   async deletarFuncao(funcaoId, ministerioId) {
     await pool.query(
       'DELETE FROM ministerio_funcoes WHERE id = $1 AND ministerio_id = $2',

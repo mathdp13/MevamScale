@@ -7,6 +7,7 @@ const ListarFuncoesUseCase = require('../../application/usecases/ministerios/Lis
 const DeletarFuncaoUseCase = require('../../application/usecases/ministerios/DeletarFuncaoUseCase');
 const SalvarFuncoesMembroUseCase = require('../../application/usecases/ministerios/SalvarFuncoesMembroUseCase');
 const DeletarMinisterioUseCase = require('../../application/usecases/ministerios/DeletarMinisterioUseCase');
+const AtualizarFuncaoUseCase = require('../../application/usecases/ministerios/AtualizarFuncaoUseCase');
 const PgMinisterioRepository = require('../../infrastructure/repositories/PgMinisterioRepository');
 
 const ministerioRepo = new PgMinisterioRepository();
@@ -66,6 +67,19 @@ class MinisteriosController {
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  }
+
+  async atualizarFuncao(req, res) {
+    try {
+      const result = await new AtualizarFuncaoUseCase(ministerioRepo).execute({
+        funcaoId: req.params.funcaoId,
+        ministerioId: req.params.id,
+        nome: req.body.nome,
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
     }
   }
 

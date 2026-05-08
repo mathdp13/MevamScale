@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Sidebar from '../components/Sidebar';
 import toast, { Toaster } from 'react-hot-toast';
-import { ArrowLeft, Plus, Trash2, Trash } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Trash, Pencil, Check, X } from 'lucide-react';
 
 function Ministerio() {
   const { id } = useParams();
@@ -19,6 +19,8 @@ function Ministerio() {
   const [erro, setErro] = useState(false);
   const [showConfirmarExcluir, setShowConfirmarExcluir] = useState(false);
   const [deletando, setDeletando] = useState(false);
+  const [editandoFuncaoId, setEditandoFuncaoId] = useState(null);
+  const [nomeEditando, setNomeEditando] = useState('');
 
   const carregar = async () => {
     try {
@@ -64,6 +66,27 @@ function Ministerio() {
       toast.error('Erro ao excluir ministerio.');
       setDeletando(false);
       setShowConfirmarExcluir(false);
+    }
+  };
+
+  const iniciarEdicao = (f) => {
+    setEditandoFuncaoId(f.id);
+    setNomeEditando(f.nome);
+  };
+
+  const cancelarEdicao = () => {
+    setEditandoFuncaoId(null);
+    setNomeEditando('');
+  };
+
+  const salvarEdicaoFuncao = async (funcaoId) => {
+    if (!nomeEditando.trim()) return;
+    try {
+      await api.put(`/ministerios/${id}/funcoes/${funcaoId}`, { nome: nomeEditando });
+      cancelarEdicao();
+      carregar();
+    } catch {
+      toast.error('Erro ao editar funcao.');
     }
   };
 
@@ -216,14 +239,37 @@ function Ministerio() {
 
               <div className="space-y-2">
                 {funcoes.map((f) => (
-                  <div key={f.id} className="bg-[#0a1a33] px-4 py-3 rounded-xl border border-white/5 flex items-center justify-between">
-                    <span className="text-sm">{f.nome}</span>
-                    <button
-                      onClick={() => deletarFuncao(f.id)}
-                      className="text-gray-600 hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                  <div key={f.id} className="bg-[#0a1a33] px-4 py-3 rounded-xl border border-white/5 flex items-center gap-2">
+                    {editandoFuncaoId === f.id ? (
+                      <>
+                        <input
+                          className="flex-grow bg-transparent border-b border-blue-500 outline-none text-sm py-0.5"
+                          value={nomeEditando}
+                          onChange={(e) => setNomeEditando(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') salvarEdicaoFuncao(f.id);
+                            if (e.key === 'Escape') cancelarEdicao();
+                          }}
+                          autoFocus
+                        />
+                        <button onClick={() => salvarEdicaoFuncao(f.id)} className="text-green-400 hover:text-green-300 transition-colors">
+                          <Check size={14} />
+                        </button>
+                        <button onClick={cancelarEdicao} className="text-gray-600 hover:text-white transition-colors">
+                          <X size={14} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-grow text-sm">{f.nome}</span>
+                        <button onClick={() => iniciarEdicao(f)} className="text-gray-600 hover:text-blue-400 transition-colors">
+                          <Pencil size={14} />
+                        </button>
+                        <button onClick={() => deletarFuncao(f.id)} className="text-gray-600 hover:text-red-400 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
                 {funcoes.length === 0 && (
