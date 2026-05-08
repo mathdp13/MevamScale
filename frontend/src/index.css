@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html {
+  overscroll-behavior: none;
+  background-color: #050b18;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #050b18;
+}
+
+button,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
