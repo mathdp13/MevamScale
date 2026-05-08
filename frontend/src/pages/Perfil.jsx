@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
-import { Camera, Plus, Save } from 'lucide-react';
+import { Camera, Plus, Save, Pencil, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 
 function Perfil() {
   const [user] = useState(JSON.parse(localStorage.getItem('user') || '{}'));
   const [loading, setLoading] = useState(false);
+  const [editando, setEditando] = useState(false);
   const fileInputRef = useRef(null);
 
   const [dados, setDados] = useState({
@@ -16,24 +17,34 @@ function Perfil() {
     data_nascimento: '',
     foto_url: user.foto_url || '',
   });
+  const [rascunho, setRascunho] = useState(dados);
 
   useEffect(() => {
-    const buscar = async () => {
-      try {
-        const res = await api.get(`/usuarios/${user.id}`);
+    if (!user.id) return;
+    api.get(`/usuarios/${user.id}`)
+      .then((res) => {
         const d = res.data;
-        setDados({
+        const atualizado = {
           nome: d.nome || '',
           telefone: d.telefone || '',
           foto_url: d.foto_url || '',
           data_nascimento: d.data_nascimento ? d.data_nascimento.split('T')[0] : '',
-        });
-      } catch (err) {
-        console.error('Erro ao carregar perfil', err);
-      }
-    };
-    if (user.id) buscar();
+        };
+        setDados(atualizado);
+        setRascunho(atualizado);
+      })
+      .catch(() => {});
   }, [user.id]);
+
+  const iniciarEdicao = () => {
+    setRascunho(dados);
+    setEditando(true);
+  };
+
+  const cancelarEdicao = () => {
+    setRascunho(dados);
+    setEditando(false);
+  };
 
   const handleFotoChange = (e) => {
     const file = e.target.files[0];
@@ -49,7 +60,7 @@ function Perfil() {
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scale;
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        setDados((prev) => ({ ...prev, foto_url: canvas.toDataURL('image/jpeg', 0.6) }));
+        setRascunho((prev) => ({ ...prev, foto_url: canvas.toDataURL('image/jpeg', 0.6) }));
       };
     };
     reader.readAsDataURL(file);
@@ -60,21 +71,23 @@ function Perfil() {
     const toastId = toast.loading('Salvando...');
     try {
       await api.put(`/usuarios/${user.id}`, {
-        nome: dados.nome,
-        foto_url: dados.foto_url || '',
-        telefone: dados.telefone || '',
-        data_nascimento: dados.data_nascimento || null,
+        nome: rascunho.nome,
+        foto_url: rascunho.foto_url || '',
+        telefone: rascunho.telefone || '',
+        data_nascimento: rascunho.data_nascimento || null,
       });
+
+      setDados(rascunho);
+      setEditando(false);
 
       const userLocal = JSON.parse(localStorage.getItem('user') || '{}');
       try {
-        localStorage.setItem('user', JSON.stringify({ ...userLocal, nome: dados.nome, foto_url: dados.foto_url }));
+        localStorage.setItem('user', JSON.stringify({ ...userLocal, nome: rascunho.nome, foto_url: rascunho.foto_url }));
       } catch {
-        localStorage.setItem('user', JSON.stringify({ ...userLocal, nome: dados.nome }));
+        localStorage.setItem('user', JSON.stringify({ ...userLocal, nome: rascunho.nome }));
       }
 
       toast.success('Perfil atualizado!', { id: toastId });
-      setTimeout(() => window.location.reload(), 1000);
     } catch {
       toast.error('Erro ao salvar.', { id: toastId });
     } finally {
@@ -82,75 +95,118 @@ function Perfil() {
     }
   };
 
+  const formatarData = (data) => {
+    if (!data) return '—';
+    const [ano, mes, dia] = data.split('-');
+    return `${dia}/${mes}/${ano}`;
+  };
+
   return (
     <div className="flex min-h-screen bg-[#050b18]">
       <Sidebar />
       <main className="lg:ml-64 flex-grow p-6 lg:p-10 text-white pb-24 lg:pb-10">
         <Toaster />
-        <h1 className="text-3xl font-bold tracking-tighter text-blue-400 mb-10">Meu Perfil</h1>
 
-        <div className="max-w-md space-y-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold tracking-tighter text-blue-400">Meu Perfil</h1>
+          {!editando ? (
+            <button
+              onClick={iniciarEdicao}
+              className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
+            >
+              <Pencil size={15} /> Editar
+            </button>
+          ) : (
+            <button
+              onClick={cancelarEdicao}
+              className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-white transition-colors"
+            >
+              <X size={15} /> Cancelar
+            </button>
+          )}
+        </div>
+
+        <div className="max-w-md space-y-6">
           {/* Foto */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative w-32 h-32 rounded-full border-4 border-white/10 overflow-hidden bg-[#0a1a33] flex items-center justify-center">
-              {dados.foto_url ? (
-                <img src={dados.foto_url} alt="Perfil" className="w-full h-full object-cover" />
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative w-28 h-28 rounded-full border-4 border-white/10 overflow-hidden bg-[#0a1a33] flex items-center justify-center">
+              {(editando ? rascunho.foto_url : dados.foto_url) ? (
+                <img src={editando ? rascunho.foto_url : dados.foto_url} alt="Perfil" className="w-full h-full object-cover" />
               ) : (
-                <Camera size={40} className="text-gray-600" />
+                <Camera size={36} className="text-gray-600" />
               )}
-              <button
-                onClick={() => fileInputRef.current.click()}
-                className="absolute bottom-1 right-1 p-2 bg-blue-600 rounded-full hover:bg-blue-500 transition-all"
-              >
-                <Plus size={16} />
-              </button>
+              {editando && (
+                <button
+                  onClick={() => fileInputRef.current.click()}
+                  className="absolute bottom-1 right-1 p-2 bg-blue-600 rounded-full hover:bg-blue-500 transition-all active:scale-90"
+                >
+                  <Plus size={14} />
+                </button>
+              )}
               <input type="file" ref={fileInputRef} onChange={handleFotoChange} accept="image/*" className="hidden" />
             </div>
-            <p className="text-gray-400 text-sm">{user.email}</p>
+            <p className="text-gray-500 text-sm">{user.email}</p>
           </div>
 
           {/* Campos */}
-          <div className="bg-[#0a1a33] p-6 rounded-2xl border border-white/5 space-y-5">
-            <div>
-              <label className="text-xs text-gray-500 uppercase font-bold tracking-widest">Nome</label>
-              <input
-                type="text"
-                value={dados.nome}
-                onChange={(e) => setDados({ ...dados, nome: e.target.value })}
-                className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-500 uppercase font-bold tracking-widest">Telefone</label>
-              <input
-                type="text"
-                value={dados.telefone}
-                onChange={(e) => setDados({ ...dados, telefone: e.target.value })}
-                placeholder="(11) 99999-9999"
-                className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-gray-500 uppercase font-bold tracking-widest">Data de Nascimento</label>
-              <input
-                type="date"
-                value={dados.data_nascimento}
-                onChange={(e) => setDados({ ...dados, data_nascimento: e.target.value })}
-                className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors"
-              />
-            </div>
+          <div className="bg-[#0a1a33] rounded-2xl border border-white/5 overflow-hidden">
+            {editando ? (
+              <div className="p-6 space-y-5">
+                <div>
+                  <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Nome</label>
+                  <input
+                    type="text"
+                    value={rascunho.nome}
+                    onChange={(e) => setRascunho({ ...rascunho, nome: e.target.value })}
+                    className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Telefone</label>
+                  <input
+                    type="text"
+                    value={rascunho.telefone}
+                    onChange={(e) => setRascunho({ ...rascunho, telefone: e.target.value })}
+                    placeholder="(11) 99999-9999"
+                    className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Data de Nascimento</label>
+                  <input
+                    type="date"
+                    value={rascunho.data_nascimento}
+                    onChange={(e) => setRascunho({ ...rascunho, data_nascimento: e.target.value })}
+                    className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors text-white"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                {[
+                  { label: 'Nome', valor: dados.nome || '—' },
+                  { label: 'Telefone', valor: dados.telefone || '—' },
+                  { label: 'Nascimento', valor: formatarData(dados.data_nascimento) },
+                ].map(({ label, valor }, i, arr) => (
+                  <div key={label} className={`px-6 py-4 flex justify-between items-center ${i < arr.length - 1 ? 'border-b border-white/5' : ''}`}>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{label}</span>
+                    <span className="text-sm font-bold text-white">{valor}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          <button
-            onClick={salvar}
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
-          >
-            <Save size={18} />
-            {loading ? 'Salvando...' : 'Salvar'}
-          </button>
+          {editando && (
+            <button
+              onClick={salvar}
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+            >
+              <Save size={18} />
+              {loading ? 'Salvando...' : 'Salvar alteracoes'}
+            </button>
+          )}
         </div>
       </main>
       <BottomNav />
