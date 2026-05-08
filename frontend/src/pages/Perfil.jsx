@@ -11,12 +11,17 @@ function Perfil() {
   const [editando, setEditando] = useState(false);
   const fileInputRef = useRef(null);
 
-  const [dados, setDados] = useState({
-    nome: user.nome || '',
-    telefone: '',
-    data_nascimento: '',
-    foto_url: user.foto_url || '',
-  });
+  const perfilCache = () => {
+    try { return JSON.parse(localStorage.getItem('perfil_cache') || 'null'); } catch { return null; }
+  };
+
+  const initialDados = () => {
+    const cache = perfilCache();
+    if (cache) return cache;
+    return { nome: user.nome || '', telefone: '', data_nascimento: '', foto_url: user.foto_url || '' };
+  };
+
+  const [dados, setDados] = useState(initialDados);
   const [rascunho, setRascunho] = useState(dados);
 
   useEffect(() => {
@@ -32,6 +37,7 @@ function Perfil() {
         };
         setDados(atualizado);
         setRascunho(atualizado);
+        try { localStorage.setItem('perfil_cache', JSON.stringify(atualizado)); } catch {}
       })
       .catch(() => {});
   }, [user.id]);
@@ -80,6 +86,7 @@ function Perfil() {
       setDados(rascunho);
       setEditando(false);
 
+      try { localStorage.setItem('perfil_cache', JSON.stringify(rascunho)); } catch {}
       const userLocal = JSON.parse(localStorage.getItem('user') || '{}');
       try {
         localStorage.setItem('user', JSON.stringify({ ...userLocal, nome: rascunho.nome, foto_url: rascunho.foto_url }));
