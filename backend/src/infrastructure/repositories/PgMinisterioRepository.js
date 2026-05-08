@@ -107,6 +107,10 @@ class PgMinisterioRepository {
     );
   }
 
+  async deletar(ministerioId) {
+    await pool.query('DELETE FROM ministerios WHERE id = $1', [ministerioId]);
+  }
+
   async buscarFuncoesMembro({ usuarioId, ministerioId }) {
     const { rows } = await pool.query(
       `SELECT mf.id, mf.nome

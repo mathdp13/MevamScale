@@ -6,6 +6,7 @@ const CriarFuncaoUseCase = require('../../application/usecases/ministerios/Criar
 const ListarFuncoesUseCase = require('../../application/usecases/ministerios/ListarFuncoesUseCase');
 const DeletarFuncaoUseCase = require('../../application/usecases/ministerios/DeletarFuncaoUseCase');
 const SalvarFuncoesMembroUseCase = require('../../application/usecases/ministerios/SalvarFuncoesMembroUseCase');
+const DeletarMinisterioUseCase = require('../../application/usecases/ministerios/DeletarMinisterioUseCase');
 const PgMinisterioRepository = require('../../infrastructure/repositories/PgMinisterioRepository');
 
 const ministerioRepo = new PgMinisterioRepository();
@@ -77,6 +78,18 @@ class MinisteriosController {
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  }
+
+  async deletar(req, res) {
+    try {
+      await new DeletarMinisterioUseCase(ministerioRepo).execute({
+        ministerioId: Number(req.params.id),
+        usuarioId: Number(req.body.usuario_id),
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
     }
   }
 

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Sidebar from '../components/Sidebar';
 import toast, { Toaster } from 'react-hot-toast';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Trash } from 'lucide-react';
 
 function Ministerio() {
   const { id } = useParams();
@@ -17,6 +17,8 @@ function Ministerio() {
   const [novaFuncao, setNovaFuncao] = useState('');
   const [showAdicionarFuncao, setShowAdicionarFuncao] = useState(false);
   const [erro, setErro] = useState(false);
+  const [showConfirmarExcluir, setShowConfirmarExcluir] = useState(false);
+  const [deletando, setDeletando] = useState(false);
 
   const carregar = async () => {
     try {
@@ -50,6 +52,18 @@ function Ministerio() {
       toast.success('Funcao adicionada!');
     } catch {
       toast.error('Erro ao adicionar funcao.');
+    }
+  };
+
+  const excluirMinisterio = async () => {
+    setDeletando(true);
+    try {
+      await api.delete(`/ministerios/${id}`, { data: { usuario_id: user.id } });
+      navigate('/home');
+    } catch {
+      toast.error('Erro ao excluir ministerio.');
+      setDeletando(false);
+      setShowConfirmarExcluir(false);
     }
   };
 
@@ -117,6 +131,14 @@ function Ministerio() {
                 Codigo: {ministerio.codigo_acesso}
               </p>
             </div>
+            {isAdmin && (
+              <button
+                onClick={() => setShowConfirmarExcluir(true)}
+                className="flex items-center gap-2 text-gray-600 hover:text-red-400 transition-colors text-sm"
+              >
+                <Trash size={16} /> Excluir ministerio
+              </button>
+            )}
           </div>
         </div>
 
@@ -212,6 +234,31 @@ function Ministerio() {
           )}
         </div>
       </main>
+
+      {showConfirmarExcluir && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0a1a33] w-full max-w-sm rounded-3xl p-8 border border-white/10">
+            <h2 className="text-xl font-bold text-white mb-2">Excluir ministerio?</h2>
+            <p className="text-gray-500 text-sm mb-8">
+              Esta acao e irreversivel. Todos os membros e funcoes serao removidos.
+            </p>
+            <button
+              onClick={excluirMinisterio}
+              disabled={deletando}
+              className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-2xl font-bold text-sm transition-all active:scale-95 mb-3"
+            >
+              {deletando ? 'Excluindo...' : 'Sim, excluir'}
+            </button>
+            <button
+              onClick={() => setShowConfirmarExcluir(false)}
+              disabled={deletando}
+              className="w-full text-gray-500 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

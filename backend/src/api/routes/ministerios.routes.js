@@ -9,5 +9,6 @@ router.get('/ministerios/:id/funcoes', (req, res) => ministeriosController.lista
 router.post('/ministerios/:id/funcoes', (req, res) => ministeriosController.criarFuncao(req, res));
 router.delete('/ministerios/:id/funcoes/:funcaoId', (req, res) => ministeriosController.deletarFuncao(req, res));
 router.post('/ministerios/:id/membro-funcoes', (req, res) => ministeriosController.salvarFuncoesMembro(req, res));
+router.delete('/ministerios/:id', (req, res) => ministeriosController.deletar(req, res));
 
 module.exports = router;
