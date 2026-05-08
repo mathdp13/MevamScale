@@ -117,26 +117,22 @@ function Perfil() {
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold tracking-tighter text-blue-400">Meu Perfil</h1>
           {!editando ? (
-            <button
-              onClick={iniciarEdicao}
-              className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors"
-            >
+            <button onClick={iniciarEdicao} className="flex items-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors">
               <Pencil size={15} /> Editar
             </button>
           ) : (
-            <button
-              onClick={cancelarEdicao}
-              className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-white transition-colors"
-            >
+            <button onClick={cancelarEdicao} className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-white transition-colors">
               <X size={15} /> Cancelar
             </button>
           )}
         </div>
 
-        <div className="max-w-md space-y-6">
-          {/* Foto */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative w-28 h-28 rounded-full border-4 border-white/10 overflow-hidden bg-[#0a1a33] flex items-center justify-center">
+        {/* Layout: coluna unica no mobile, duas colunas no desktop */}
+        <div className="flex flex-col lg:flex-row lg:items-start lg:gap-10 max-w-3xl">
+
+          {/* Coluna esquerda — foto */}
+          <div className="flex flex-col items-center gap-3 lg:w-52 flex-shrink-0 mb-6 lg:mb-0">
+            <div className="relative w-28 h-28 lg:w-36 lg:h-36 rounded-full border-4 border-white/10 overflow-hidden bg-[#0a1a33] flex items-center justify-center">
               {(editando ? rascunho.foto_url : dados.foto_url) ? (
                 <img src={editando ? rascunho.foto_url : dados.foto_url} alt="Perfil" className="w-full h-full object-cover" />
               ) : (
@@ -152,68 +148,73 @@ function Perfil() {
               )}
               <input type="file" ref={fileInputRef} onChange={handleFotoChange} accept="image/*" className="hidden" />
             </div>
-            <p className="text-gray-500 text-sm">{user.email}</p>
+            <div className="text-center">
+              <p className="text-white font-bold text-sm">{dados.nome}</p>
+              <p className="text-gray-500 text-xs mt-0.5">{user.email}</p>
+            </div>
           </div>
 
-          {/* Campos */}
-          <div className="bg-[#0a1a33] rounded-2xl border border-white/5 overflow-hidden">
-            {editando ? (
-              <div className="p-6 space-y-5">
-                <div>
-                  <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Nome</label>
-                  <input
-                    type="text"
-                    value={rascunho.nome}
-                    onChange={(e) => setRascunho({ ...rascunho, nome: e.target.value })}
-                    className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Telefone</label>
-                  <input
-                    type="text"
-                    value={rascunho.telefone}
-                    onChange={(e) => setRascunho({ ...rascunho, telefone: e.target.value })}
-                    placeholder="(11) 99999-9999"
-                    className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors text-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Data de Nascimento</label>
-                  <input
-                    type="date"
-                    value={rascunho.data_nascimento}
-                    onChange={(e) => setRascunho({ ...rascunho, data_nascimento: e.target.value })}
-                    className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors text-white"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div>
-                {[
-                  { label: 'Nome', valor: dados.nome || '—' },
-                  { label: 'Telefone', valor: dados.telefone || '—' },
-                  { label: 'Nascimento', valor: formatarData(dados.data_nascimento) },
-                ].map(({ label, valor }, i, arr) => (
-                  <div key={label} className={`px-6 py-4 flex justify-between items-center ${i < arr.length - 1 ? 'border-b border-white/5' : ''}`}>
-                    <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{label}</span>
-                    <span className="text-sm font-bold text-white">{valor}</span>
+          {/* Coluna direita — dados */}
+          <div className="flex-grow space-y-4">
+            <div className="bg-[#0a1a33] rounded-2xl border border-white/5 overflow-hidden">
+              {editando ? (
+                <div className="p-6 space-y-5">
+                  <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Nome</label>
+                    <input
+                      type="text"
+                      value={rascunho.nome}
+                      onChange={(e) => setRascunho({ ...rascunho, nome: e.target.value })}
+                      className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors text-white"
+                    />
                   </div>
-                ))}
-              </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Telefone</label>
+                    <input
+                      type="text"
+                      value={rascunho.telefone}
+                      onChange={(e) => setRascunho({ ...rascunho, telefone: e.target.value })}
+                      placeholder="(11) 99999-9999"
+                      className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Data de Nascimento</label>
+                    <input
+                      type="date"
+                      value={rascunho.data_nascimento}
+                      onChange={(e) => setRascunho({ ...rascunho, data_nascimento: e.target.value })}
+                      className="w-full bg-transparent border-b border-gray-700 py-2 focus:border-blue-500 outline-none transition-colors text-white"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {[
+                    { label: 'Nome', valor: dados.nome || '—' },
+                    { label: 'Telefone', valor: dados.telefone || '—' },
+                    { label: 'Nascimento', valor: formatarData(dados.data_nascimento) },
+                  ].map(({ label, valor }, i, arr) => (
+                    <div key={label} className={`px-6 py-4 flex justify-between items-center ${i < arr.length - 1 ? 'border-b border-white/5' : ''}`}>
+                      <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">{label}</span>
+                      <span className="text-sm font-bold text-white">{valor}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {editando && (
+              <button
+                onClick={salvar}
+                disabled={loading}
+                className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <Save size={18} />
+                {loading ? 'Salvando...' : 'Salvar alteracoes'}
+              </button>
             )}
           </div>
-
-          {editando && (
-            <button
-              onClick={salvar}
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
-            >
-              <Save size={18} />
-              {loading ? 'Salvando...' : 'Salvar alteracoes'}
-            </button>
-          )}
         </div>
       </main>
       <BottomNav />
