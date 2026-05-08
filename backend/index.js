@@ -5,11 +5,18 @@ if (process.env.NODE_ENV !== 'production') {
 const app = require('./app');
 const { run: runMigrations } = require('./src/infrastructure/database/migrations');
 
-runMigrations().catch((err) => console.error('Erro nas migrations:', err.message));
+const migrationReady = runMigrations().catch((err) => {
+  console.error('Erro nas migrations:', err.message);
+});
 
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3001;
-  app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+  migrationReady.then(() => {
+    app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+  });
 }
 
-module.exports = app;
+module.exports = async (req, res) => {
+  await migrationReady;
+  return app(req, res);
+};

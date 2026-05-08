@@ -89,15 +89,16 @@ const run = async () => {
       );
     `);
 
+    // Remove tabela escalas antiga (Fase 1 com projeto_id) se existir
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS escalas (
-        id SERIAL PRIMARY KEY,
-        projeto_id INTEGER REFERENCES projetos(id) ON DELETE CASCADE,
-        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
-        data_evento TIMESTAMP NOT NULL,
-        funcao_escalada VARCHAR(50) NOT NULL,
-        confirmado BOOLEAN DEFAULT FALSE
-      );
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'escalas' AND column_name = 'projeto_id'
+        ) THEN
+          DROP TABLE IF EXISTS escalas CASCADE;
+        END IF;
+      END $$;
     `);
 
     await pool.query(`
