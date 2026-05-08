@@ -1,11 +1,12 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Home, Church, LogOut } from 'lucide-react';
+import { Home, Church, Calendar, LogOut } from 'lucide-react';
 import api from '../services/api';
 
 const menuItems = [
   { label: 'Inicio', icon: Home, path: '/home' },
   { label: 'Ministerios', icon: Church, path: '/ministerios' },
+  { label: 'Agenda', icon: Calendar, path: '/agenda' },
 ];
 
 const Sidebar = () => {

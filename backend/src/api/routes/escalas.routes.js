@@ -6,6 +6,9 @@ router.get('/ministerios/:ministerioId/tipos-culto', (req, res) => ctrl.listarTi
 router.post('/ministerios/:ministerioId/tipos-culto', (req, res) => ctrl.criarTipoCulto(req, res));
 router.delete('/ministerios/:ministerioId/tipos-culto/:tipoCultoId', (req, res) => ctrl.deletarTipoCulto(req, res));
 
+// Agenda pessoal
+router.get('/agenda', (req, res) => ctrl.agenda(req, res));
+
 // Escalas
 router.get('/escalas', (req, res) => ctrl.listar(req, res));
 router.post('/escalas', (req, res) => ctrl.criar(req, res));

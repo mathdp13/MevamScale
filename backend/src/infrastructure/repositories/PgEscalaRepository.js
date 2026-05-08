@@ -114,6 +114,26 @@ class PgEscalaRepository {
       [confirmado, escalaId, usuarioId]
     );
   }
+
+  async listarAgenda({ usuarioId, mes, ano }) {
+    const { rows } = await pool.query(
+      `SELECT
+        e.id, e.nome, e.data_evento, e.data_ensaio,
+        em.confirmado,
+        mf.nome AS funcao_nome,
+        m.id AS ministerio_id, m.nome AS ministerio_nome
+       FROM escala_membros em
+       JOIN escalas e ON e.id = em.escala_id
+       JOIN ministerios m ON m.id = e.ministerio_id
+       LEFT JOIN ministerio_funcoes mf ON mf.id = em.funcao_id
+       WHERE em.usuario_id = $1
+         AND EXTRACT(MONTH FROM e.data_evento) = $2
+         AND EXTRACT(YEAR FROM e.data_evento) = $3
+       ORDER BY e.data_evento ASC`,
+      [usuarioId, mes, ano]
+    );
+    return rows;
+  }
 }
 
 module.exports = PgEscalaRepository;

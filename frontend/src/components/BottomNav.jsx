@@ -1,9 +1,10 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Church, User } from 'lucide-react';
+import { Home, Church, Calendar, User } from 'lucide-react';
 
 const items = [
   { label: 'Inicio', icon: Home, path: '/home' },
   { label: 'Ministerios', icon: Church, path: '/ministerios' },
+  { label: 'Agenda', icon: Calendar, path: '/agenda' },
   { label: 'Perfil', icon: User, path: '/perfil' },
 ];
 

@@ -10,6 +10,7 @@ const AdicionarMembroEscalaUseCase = require('../../application/usecases/escalas
 const RemoverMembroEscalaUseCase = require('../../application/usecases/escalas/RemoverMembroEscalaUseCase');
 const ConfirmarPresencaUseCase = require('../../application/usecases/escalas/ConfirmarPresencaUseCase');
 const ListarMembrosEscalaUseCase = require('../../application/usecases/escalas/ListarMembrosEscalaUseCase');
+const ListarAgendaUseCase = require('../../application/usecases/escalas/ListarAgendaUseCase');
 
 const repo = new PgEscalaRepository();
 
@@ -118,6 +119,16 @@ class EscalasController {
         usuarioId: req.params.usuarioId,
       });
       res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async agenda(req, res) {
+    try {
+      const { usuarioId, mes, ano } = req.query;
+      const result = await new ListarAgendaUseCase(repo).execute({ usuarioId, mes, ano });
+      res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
