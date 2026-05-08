@@ -128,7 +128,7 @@ const run = async () => {
 
     console.log('Migrations concluidas');
   } catch (err) {
-    console.error('Erro nas migrations:', err.message);
+    console.error('Erro nas migrations:', err);
     throw err;
   }
 };
