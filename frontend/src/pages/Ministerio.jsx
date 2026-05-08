@@ -7,15 +7,27 @@ import { ArrowLeft, Plus, Trash2, Trash, Pencil, Check, X } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import EscalasTab from '../components/EscalasTab';
 
+function lerCache(id) {
+  try { return JSON.parse(localStorage.getItem(`ministerio_${id}`) || 'null'); } catch { return null; }
+}
+
+function salvarCache(id, dados) {
+  try { localStorage.setItem(`ministerio_${id}`, JSON.stringify(dados)); } catch {}
+}
+
 function Ministerio() {
   const { id } = useParams();
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  const [ministerio, setMinisterio] = useState(null);
-  const [membros, setMembros] = useState([]);
-  const [funcoes, setFuncoes] = useState([]);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const cached = lerCache(id);
+  const [ministerio, setMinisterio] = useState(cached?.ministerio ?? null);
+  const [membros, setMembros] = useState(cached?.membros ?? []);
+  const [funcoes, setFuncoes] = useState(cached?.funcoes ?? []);
+  const [isAdmin, setIsAdmin] = useState(() => {
+    const m = cached?.membros?.find((m) => m.id === user.id);
+    return m?.permissao === 'admin';
+  });
   const [novaFuncao, setNovaFuncao] = useState('');
   const [showAdicionarFuncao, setShowAdicionarFuncao] = useState(false);
   const [erro, setErro] = useState(false);
@@ -37,9 +49,10 @@ function Ministerio() {
       setFuncoes(resFuncoes.data);
       const membroAtual = resMembros.data.find((m) => m.id === user.id);
       setIsAdmin(membroAtual?.permissao === 'admin');
+      salvarCache(id, { ministerio: resMin.data, membros: resMembros.data, funcoes: resFuncoes.data });
     } catch {
-      toast.error('Erro ao carregar ministerio.');
-      setErro(true);
+      if (!ministerio) setErro(true);
+      else toast.error('Erro ao atualizar dados.');
     }
   };
 
@@ -64,6 +77,7 @@ function Ministerio() {
     setDeletando(true);
     try {
       await api.delete(`/ministerios/${id}`, { data: { usuario_id: user.id } });
+      localStorage.removeItem(`ministerio_${id}`);
       navigate('/home');
     } catch {
       toast.error('Erro ao excluir ministerio.');
@@ -224,7 +238,6 @@ function Ministerio() {
               )}
             </div>
           </div>
-
         </div>
         )}
 

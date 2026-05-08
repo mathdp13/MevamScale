@@ -7,24 +7,37 @@ import BottomNav from '../components/BottomNav';
 
 const MESES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
+const agora = new Date();
+
+function cacheKey(userId, mes, ano) {
+  return `agenda_${userId}_${mes}_${ano}`;
+}
+
+function lerCache(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null') ?? []; } catch { return []; }
+}
+
 function Agenda() {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const agora = new Date();
   const [mes, setMes] = useState(agora.getMonth() + 1);
   const [ano, setAno] = useState(agora.getFullYear());
-  const [eventos, setEventos] = useState([]);
+  const [eventos, setEventos] = useState(() => lerCache(cacheKey(user.id, agora.getMonth() + 1, agora.getFullYear())));
 
-  const carregarAgenda = async () => {
+  const carregarAgenda = async (m, a) => {
+    const key = cacheKey(user.id, m, a);
     try {
-      const res = await api.get(`/agenda?usuarioId=${user.id}&mes=${mes}&ano=${ano}`);
+      const res = await api.get(`/agenda?usuarioId=${user.id}&mes=${m}&ano=${a}`);
       setEventos(res.data);
+      localStorage.setItem(key, JSON.stringify(res.data));
     } catch {
       toast.error('Erro ao carregar agenda.');
     }
   };
 
   useEffect(() => {
-    if (user.id) carregarAgenda();
+    if (!user.id) return;
+    setEventos(lerCache(cacheKey(user.id, mes, ano)));
+    carregarAgenda(mes, ano);
   }, [mes, ano]);
 
   const navegarMes = (dir) => {
@@ -41,18 +54,20 @@ function Agenda() {
       await api.put(`/escalas/${evento.id}/membros/${user.id}/confirmar`, {
         confirmado: !evento.confirmado,
       });
-      setEventos((prev) =>
-        prev.map((e) => e.id === evento.id ? { ...e, confirmado: !e.confirmado } : e)
-      );
+      setEventos((prev) => {
+        const atualizados = prev.map((e) => e.id === evento.id ? { ...e, confirmado: !e.confirmado } : e);
+        localStorage.setItem(cacheKey(user.id, mes, ano), JSON.stringify(atualizados));
+        return atualizados;
+      });
     } catch {
       toast.error('Erro ao confirmar presenca.');
     }
   };
 
   const formatarData = (data) => {
-    if (!data) return '';
-    const [a, m, d] = data.split('T')[0].split('-');
-    return { dia: d, mes: m, ano: a };
+    if (!data) return { dia: '', mes: '' };
+    const [, m, d] = data.split('T')[0].split('-');
+    return { dia: d, mes: m };
   };
 
   return (

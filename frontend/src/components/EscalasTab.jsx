@@ -7,12 +7,20 @@ import EscalaDetalhe from './EscalaDetalhe';
 const MESES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const DIAS = ['Domingo','Segunda','Terca','Quarta','Quinta','Sexta','Sabado'];
 
+function lerCache(key) {
+  try { return JSON.parse(localStorage.getItem(key) || 'null') ?? []; } catch { return []; }
+}
+
+function salvarCache(key, dados) {
+  try { localStorage.setItem(key, JSON.stringify(dados)); } catch {}
+}
+
 function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
   const agora = new Date();
   const [mes, setMes] = useState(agora.getMonth() + 1);
   const [ano, setAno] = useState(agora.getFullYear());
-  const [escalas, setEscalas] = useState([]);
-  const [tiposCulto, setTiposCulto] = useState([]);
+  const [escalas, setEscalas] = useState(() => lerCache(`escalas_${ministerioId}_${agora.getMonth() + 1}_${agora.getFullYear()}`));
+  const [tiposCulto, setTiposCulto] = useState(() => lerCache(`tipos_culto_${ministerioId}`));
   const [escalaSelecionada, setEscalaSelecionada] = useState(null);
 
   const [showNovaEscala, setShowNovaEscala] = useState(false);
@@ -25,6 +33,7 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
     try {
       const res = await api.get(`/escalas?ministerioId=${ministerioId}&mes=${mes}&ano=${ano}`);
       setEscalas(res.data);
+      salvarCache(`escalas_${ministerioId}_${mes}_${ano}`, res.data);
     } catch {
       toast.error('Erro ao carregar escalas.');
     }
@@ -34,10 +43,12 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
     try {
       const res = await api.get(`/ministerios/${ministerioId}/tipos-culto`);
       setTiposCulto(res.data);
+      salvarCache(`tipos_culto_${ministerioId}`, res.data);
     } catch {}
   };
 
   useEffect(() => {
+    setEscalas(lerCache(`escalas_${ministerioId}_${mes}_${ano}`));
     carregarEscalas();
   }, [mes, ano, ministerioId]);
 
@@ -120,7 +131,7 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
 
   const formatarData = (data) => {
     if (!data) return '';
-    const [a, m, d] = data.split('T')[0].split('-');
+    const [, m, d] = data.split('T')[0].split('-');
     return `${d}/${m}`;
   };
 

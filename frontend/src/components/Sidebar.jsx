@@ -17,16 +17,14 @@ const Sidebar = () => {
   useEffect(() => {
     const dadosLocal = JSON.parse(localStorage.getItem('user') || '{}');
     setUser(dadosLocal);
-    if (!dadosLocal.id) return;
+    if (!dadosLocal.id || dadosLocal.foto_url) return;
     api.get(`/usuarios/${dadosLocal.id}`)
       .then((res) => {
         if (res.data.foto_url) {
           setUser((prev) => ({ ...prev, foto_url: res.data.foto_url }));
           try {
             localStorage.setItem('user', JSON.stringify({ ...dadosLocal, foto_url: res.data.foto_url }));
-          } catch {
-            // localStorage cheio, mantém só em memória
-          }
+          } catch {}
         }
       })
       .catch(() => {});
