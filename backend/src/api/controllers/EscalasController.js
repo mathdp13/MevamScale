@@ -26,7 +26,14 @@ class EscalasController {
 
   async criar(req, res) {
     try {
-      const result = await new CriarEscalaUseCase(repo).execute(req.body);
+      const { ministerioId, nome, data_evento, data_ensaio, tipo_culto_id } = req.body;
+      const result = await new CriarEscalaUseCase(repo).execute({
+        ministerioId,
+        nome,
+        dataEvento: data_evento,
+        dataEnsaio: data_ensaio,
+        tipoCultoId: tipo_culto_id,
+      });
       res.status(201).json(result);
     } catch (err) {
       res.status(err.status || 500).json({ error: err.message });
