@@ -45,7 +45,7 @@ const run = async () => {
         id SERIAL PRIMARY KEY,
         ministerio_id INTEGER REFERENCES ministerios(id) ON DELETE CASCADE,
         nome VARCHAR(100) NOT NULL,
-        emoji VARCHAR(10) DEFAULT '👤',
+        emoji VARCHAR(10),
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -128,7 +128,7 @@ const run = async () => {
 
     console.log('Migrations concluidas');
   } catch (err) {
-    console.error('❌ Erro nas migrations:', err.message);
+    console.error('Erro nas migrations:', err.message);
     throw err;
   }
 };

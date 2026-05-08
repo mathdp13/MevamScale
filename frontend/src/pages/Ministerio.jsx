@@ -16,6 +16,7 @@ function Ministerio() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [novaFuncao, setNovaFuncao] = useState('');
   const [showAdicionarFuncao, setShowAdicionarFuncao] = useState(false);
+  const [erro, setErro] = useState(false);
 
   const carregar = async () => {
     try {
@@ -31,6 +32,7 @@ function Ministerio() {
       setIsAdmin(membroAtual?.permissao === 'admin');
     } catch {
       toast.error('Erro ao carregar ministerio.');
+      setErro(true);
     }
   };
 
@@ -59,6 +61,29 @@ function Ministerio() {
       toast.error('Erro ao remover funcao.');
     }
   };
+
+  if (erro) {
+    return (
+      <div className="flex min-h-screen bg-[#050b18]">
+        <Sidebar />
+        <main className="ml-64 flex-grow flex flex-col items-center justify-center gap-4 text-gray-500">
+          <p>Nao foi possivel carregar o ministerio.</p>
+          <button
+            onClick={() => { setErro(false); carregar(); }}
+            className="text-blue-400 hover:text-blue-300 text-sm font-bold transition-colors"
+          >
+            Tentar novamente
+          </button>
+          <button
+            onClick={() => navigate('/home')}
+            className="text-gray-600 hover:text-white text-sm transition-colors"
+          >
+            Voltar
+          </button>
+        </main>
+      </div>
+    );
+  }
 
   if (!ministerio) {
     return (
