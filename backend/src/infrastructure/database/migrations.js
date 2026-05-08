@@ -126,6 +126,39 @@ const run = async () => {
       );
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tipos_culto (
+        id SERIAL PRIMARY KEY,
+        ministerio_id INTEGER REFERENCES ministerios(id) ON DELETE CASCADE,
+        nome VARCHAR(100) NOT NULL,
+        dia_semana INTEGER CHECK (dia_semana BETWEEN 0 AND 6),
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escalas (
+        id SERIAL PRIMARY KEY,
+        ministerio_id INTEGER REFERENCES ministerios(id) ON DELETE CASCADE,
+        tipo_culto_id INTEGER REFERENCES tipos_culto(id) ON DELETE SET NULL,
+        nome VARCHAR(150) NOT NULL,
+        data_evento DATE NOT NULL,
+        data_ensaio DATE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escala_membros (
+        id SERIAL PRIMARY KEY,
+        escala_id INTEGER REFERENCES escalas(id) ON DELETE CASCADE,
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+        funcao_id INTEGER REFERENCES ministerio_funcoes(id) ON DELETE SET NULL,
+        confirmado BOOLEAN DEFAULT FALSE,
+        UNIQUE(escala_id, usuario_id)
+      );
+    `);
+
     console.log('Migrations concluidas');
   } catch (err) {
     console.error('Erro nas migrations:', err);

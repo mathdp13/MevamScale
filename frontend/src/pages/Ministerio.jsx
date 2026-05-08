@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import toast, { Toaster } from 'react-hot-toast';
 import { ArrowLeft, Plus, Trash2, Trash, Pencil, Check, X } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
+import EscalasTab from '../components/EscalasTab';
 
 function Ministerio() {
   const { id } = useParams();
@@ -22,6 +23,7 @@ function Ministerio() {
   const [deletando, setDeletando] = useState(false);
   const [editandoFuncaoId, setEditandoFuncaoId] = useState(null);
   const [nomeEditando, setNomeEditando] = useState('');
+  const [tabAtiva, setTabAtiva] = useState('membros');
 
   const carregar = async () => {
     try {
@@ -166,11 +168,28 @@ function Ministerio() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Tabs */}
+        <div className="flex gap-1 mb-8 bg-[#0a1a33] p-1 rounded-2xl w-fit">
+          {['membros', 'escalas', ...(isAdmin ? ['funcoes'] : [])].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setTabAtiva(tab)}
+              className={`px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                tabAtiva === tab ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-white'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
 
-          {/* Membros */}
-          <div className="lg:col-span-2">
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Membros</h2>
+        {tabAtiva === 'escalas' && (
+          <EscalasTab ministerioId={id} isAdmin={isAdmin} membros={membros} funcoes={funcoes} />
+        )}
+
+        {tabAtiva === 'membros' && (
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 max-w-2xl">
+          <div>
             <div className="space-y-3">
               {membros.map((m) => (
                 <div key={m.id} className="bg-[#0a1a33] p-4 rounded-2xl border border-white/5 flex items-center gap-4">
@@ -206,80 +225,78 @@ function Ministerio() {
             </div>
           </div>
 
-          {/* Funcoes (visivel para admin) */}
-          {isAdmin && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">Funcoes</h2>
-                <button
-                  onClick={() => setShowAdicionarFuncao(!showAdicionarFuncao)}
-                  className="text-blue-500 hover:text-blue-400 transition-colors"
-                >
-                  <Plus size={18} />
+        </div>
+        )}
+
+        {tabAtiva === 'funcoes' && isAdmin && (
+          <div className="max-w-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">Funcoes</h2>
+              <button
+                onClick={() => setShowAdicionarFuncao(!showAdicionarFuncao)}
+                className="text-blue-500 hover:text-blue-400 transition-colors"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
+
+            {showAdicionarFuncao && (
+              <div className="mb-4 flex gap-2">
+                <input
+                  className="flex-grow bg-[#0a1a33] border border-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500"
+                  placeholder="Ex: Guitarra"
+                  value={novaFuncao}
+                  onChange={(e) => setNovaFuncao(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && adicionarFuncao()}
+                  autoFocus
+                />
+                <button onClick={adicionarFuncao} className="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-xl text-sm font-bold transition-all">
+                  OK
                 </button>
               </div>
+            )}
 
-              {showAdicionarFuncao && (
-                <div className="mb-4 flex gap-2">
-                  <input
-                    className="flex-grow bg-[#0a1a33] border border-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500"
-                    placeholder="Ex: Guitarra"
-                    value={novaFuncao}
-                    onChange={(e) => setNovaFuncao(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && adicionarFuncao()}
-                    autoFocus
-                  />
-                  <button
-                    onClick={adicionarFuncao}
-                    className="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-xl text-sm font-bold transition-all"
-                  >
-                    OK
-                  </button>
+            <div className="space-y-2">
+              {funcoes.map((f) => (
+                <div key={f.id} className="bg-[#0a1a33] px-4 py-3 rounded-xl border border-white/5 flex items-center gap-2">
+                  {editandoFuncaoId === f.id ? (
+                    <>
+                      <input
+                        className="flex-grow bg-transparent border-b border-blue-500 outline-none text-sm py-0.5"
+                        value={nomeEditando}
+                        onChange={(e) => setNomeEditando(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') salvarEdicaoFuncao(f.id);
+                          if (e.key === 'Escape') cancelarEdicao();
+                        }}
+                        autoFocus
+                      />
+                      <button onClick={() => salvarEdicaoFuncao(f.id)} className="text-green-400 hover:text-green-300 transition-colors">
+                        <Check size={14} />
+                      </button>
+                      <button onClick={cancelarEdicao} className="text-gray-600 hover:text-white transition-colors">
+                        <X size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-grow text-sm">{f.nome}</span>
+                      <button onClick={() => iniciarEdicao(f)} className="text-gray-600 hover:text-blue-400 transition-colors">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => deletarFuncao(f.id)} className="text-gray-600 hover:text-red-400 transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </>
+                  )}
                 </div>
+              ))}
+              {funcoes.length === 0 && (
+                <p className="text-gray-600 italic text-sm">Nenhuma funcao cadastrada.</p>
               )}
-
-              <div className="space-y-2">
-                {funcoes.map((f) => (
-                  <div key={f.id} className="bg-[#0a1a33] px-4 py-3 rounded-xl border border-white/5 flex items-center gap-2">
-                    {editandoFuncaoId === f.id ? (
-                      <>
-                        <input
-                          className="flex-grow bg-transparent border-b border-blue-500 outline-none text-sm py-0.5"
-                          value={nomeEditando}
-                          onChange={(e) => setNomeEditando(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') salvarEdicaoFuncao(f.id);
-                            if (e.key === 'Escape') cancelarEdicao();
-                          }}
-                          autoFocus
-                        />
-                        <button onClick={() => salvarEdicaoFuncao(f.id)} className="text-green-400 hover:text-green-300 transition-colors">
-                          <Check size={14} />
-                        </button>
-                        <button onClick={cancelarEdicao} className="text-gray-600 hover:text-white transition-colors">
-                          <X size={14} />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="flex-grow text-sm">{f.nome}</span>
-                        <button onClick={() => iniciarEdicao(f)} className="text-gray-600 hover:text-blue-400 transition-colors">
-                          <Pencil size={14} />
-                        </button>
-                        <button onClick={() => deletarFuncao(f.id)} className="text-gray-600 hover:text-red-400 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ))}
-                {funcoes.length === 0 && (
-                  <p className="text-gray-600 italic text-sm">Nenhuma funcao cadastrada.</p>
-                )}
-              </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </main>
 
       <BottomNav />
