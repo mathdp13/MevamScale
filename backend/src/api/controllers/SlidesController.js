@@ -52,14 +52,19 @@ class SlidesController {
 
       let imagem_url = null;
       if (req.file) {
-        const result = await new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            { folder: 'slides_login', resource_type: 'image' },
-            (err, result) => { if (err) reject(err); else resolve(result); }
-          );
-          stream.end(req.file.buffer);
-        });
-        imagem_url = result.secure_url;
+        try {
+          const result = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { folder: 'slides_login', resource_type: 'image' },
+              (err, result) => { if (err) reject(err); else resolve(result); }
+            );
+            stream.end(req.file.buffer);
+          });
+          imagem_url = result.secure_url;
+        } catch (uploadErr) {
+          console.error('[SlidesController.criar] Cloudinary upload falhou:', uploadErr.message);
+          // slide criado sem imagem se Cloudinary nao estiver configurado
+        }
       }
 
       const { rows } = await pool.query(
