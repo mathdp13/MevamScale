@@ -237,21 +237,47 @@ function Login() {
             </form>
           </div>
 
-          {/* Card do proximo evento mobile */}
-          {item?.type === 'evento' && (
+          {/* Banner mobile — slide ou proximo evento */}
+          {item && (
             <div className="lg:hidden mt-4">
-              <div className="bg-[#0a1a33]/80 border border-white/10 rounded-2xl px-5 py-4">
-                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mb-1">
-                  Proximo evento
-                </p>
-                <p className="text-white font-bold text-sm">
-                  {(() => {
-                    const d = new Date(item.data_evento.split('T')[0] + 'T12:00:00');
-                    return `${DIAS_NOME[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')} ${MESES_CURTO[d.getMonth()]}`;
-                  })()}
-                </p>
-                <p className="text-gray-500 text-xs mt-0.5">{item.nome}</p>
-              </div>
+              {item.type === 'slide' ? (
+                <div className="relative rounded-2xl overflow-hidden border border-white/10">
+                  {item.imagem_url ? (
+                    <img src={item.imagem_url} alt={item.titulo} className="w-full h-36 object-cover opacity-70" />
+                  ) : (
+                    <div className="w-full h-36 bg-gradient-to-br from-[#0a1a33] via-[#0d2347] to-[#050b18]" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <p className="text-white font-bold text-sm leading-tight">{item.titulo}</p>
+                    {item.subtitulo && <p className="text-gray-400 text-xs mt-0.5">{item.subtitulo}</p>}
+                  </div>
+                  {carouselItems.length > 1 && (
+                    <div className="absolute top-3 right-3 flex gap-1">
+                      {carouselItems.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setCarouselIdx(i)}
+                          className={`h-1 rounded-full transition-all ${i === carouselIdx ? 'w-4 bg-white' : 'w-1 bg-white/30'}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-[#0a1a33]/80 border border-white/10 rounded-2xl px-5 py-4">
+                  <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mb-1">
+                    Proximo evento
+                  </p>
+                  <p className="text-white font-bold text-sm">
+                    {(() => {
+                      const d = new Date(item.data_evento.split('T')[0] + 'T12:00:00');
+                      return `${DIAS_NOME[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')} ${MESES_CURTO[d.getMonth()]}`;
+                    })()}
+                  </p>
+                  <p className="text-gray-500 text-xs mt-0.5">{item.nome}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
