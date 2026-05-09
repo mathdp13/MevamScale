@@ -98,11 +98,21 @@ class MinisteriosController {
 
   async atualizar(req, res) {
     try {
-      const result = await new AtualizarMinisterioUseCase(ministerioRepo).execute({
-        ministerioId: req.params.id,
-        nome: req.body.nome,
-      });
-      res.json(result);
+      const { nome, dia_limite_ausencias } = req.body;
+      let result;
+      if (nome !== undefined) {
+        result = await new AtualizarMinisterioUseCase(ministerioRepo).execute({
+          ministerioId: req.params.id,
+          nome,
+        });
+      }
+      if (dia_limite_ausencias !== undefined) {
+        result = await ministerioRepo.atualizarDiaLimite({
+          ministerioId: req.params.id,
+          dia: dia_limite_ausencias ? Number(dia_limite_ausencias) : null,
+        });
+      }
+      res.json(result || { ok: true });
     } catch (err) {
       res.status(err.status || 500).json({ error: err.message });
     }
@@ -130,6 +140,33 @@ class MinisteriosController {
       res.json(result);
     } catch (err) {
       res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  async getEscalaConfig(req, res) {
+    try {
+      const result = await ministerioRepo.getEscalaConfig({
+        ministerioId: req.params.id,
+        mes: req.query.mes,
+        ano: req.query.ano,
+      });
+      res.json(result || null);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async setEscalaConfig(req, res) {
+    try {
+      const result = await ministerioRepo.setEscalaConfig({
+        ministerioId: req.params.id,
+        mes: req.body.mes,
+        ano: req.body.ano,
+        dataLimiteAusencias: req.body.data_limite_ausencias || null,
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   }
 }

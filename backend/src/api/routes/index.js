@@ -4,5 +4,6 @@ router.use(require('./auth.routes'));
 router.use(require('./usuarios.routes'));
 router.use(require('./ministerios.routes'));
 router.use(require('./escalas.routes'));
+router.use(require('./slides.routes'));
 
 module.exports = router;

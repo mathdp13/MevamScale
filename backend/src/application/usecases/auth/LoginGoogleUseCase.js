@@ -13,7 +13,7 @@ class LoginGoogleUseCase {
       usuario = await this.usuarioRepository.criar({ nome: name, email, google_id: sub });
     }
 
-    const tokenSistema = this.tokenService.gerar({ id: usuario.id, permissao: usuario.permissao });
+    const tokenSistema = this.tokenService.gerar({ id: usuario.id, permissao: usuario.permissao, superadmin: usuario.superadmin, pode_slides: usuario.podeSlides });
     return { token: tokenSistema, user: usuario.toAuthResponse() };
   }
 }

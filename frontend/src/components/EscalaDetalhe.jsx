@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { X, Plus, Check, Trash2 } from 'lucide-react';
+import { X, Plus, Check, Trash2, AlertCircle } from 'lucide-react';
 
-function EscalaDetalhe({ escala, isAdmin, membros, funcoes, onFechar, onAtualizar }) {
+function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFechar, onAtualizar }) {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [membrosEscala, setMembrosEscala] = useState([]);
   const [showAdicionarMembro, setShowAdicionarMembro] = useState(false);
-  const [novoMembro, setNovoMembro] = useState({ usuario_id: '', funcao_id: '' });
+  const [selecionados, setSelecionados] = useState([]);
+  const [adicionando, setAdicionando] = useState(false);
+  const [ausencias, setAusencias] = useState([]);
 
   const carregarMembros = async () => {
     try {
@@ -20,22 +22,47 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, onFechar, onAtualiza
 
   useEffect(() => {
     carregarMembros();
+    if (isAdmin && ministerioId && escala.data_evento) {
+      const parts = escala.data_evento.split('T')[0].split('-');
+      api.get(`/ausencias?ministerioId=${ministerioId}&mes=${parseInt(parts[1], 10)}&ano=${parts[0]}`)
+        .then((res) => setAusencias(res.data))
+        .catch(() => {});
+    }
   }, [escala.id]);
 
-  const adicionarMembro = async () => {
-    if (!novoMembro.usuario_id) return toast.error('Selecione um membro.');
+  const adicionarSelecionados = async () => {
+    if (selecionados.length === 0) return;
+    setAdicionando(true);
     try {
-      await api.post(`/escalas/${escala.id}/membros`, {
-        usuario_id: novoMembro.usuario_id,
-        funcao_id: novoMembro.funcao_id || null,
-      });
-      setNovoMembro({ usuario_id: '', funcao_id: '' });
+      await Promise.all(
+        selecionados.map((id) => {
+          const membro = membros.find((m) => m.id === id);
+          const funcaoId = membro?.funcoes?.[0]?.id || null;
+          return api.post(`/escalas/${escala.id}/membros`, { usuario_id: id, funcao_id: funcaoId });
+        })
+      );
+      setSelecionados([]);
       setShowAdicionarMembro(false);
       carregarMembros();
       onAtualizar();
     } catch {
-      toast.error('Erro ao adicionar membro.');
+      toast.error('Erro ao adicionar membros.');
+    } finally {
+      setAdicionando(false);
     }
+  };
+
+  const toggleSelecionado = (id) => {
+    setSelecionados((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleTodos = () => {
+    const disponiveis = membroNaoAdicionados.map((m) => m.id);
+    setSelecionados((prev) =>
+      prev.length === disponiveis.length ? [] : disponiveis
+    );
   };
 
   const removerMembro = async (usuarioId) => {
@@ -67,6 +94,9 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, onFechar, onAtualiza
     (m) => !membrosEscala.find((me) => me.usuario_id === m.id)
   );
 
+  const dataEscala = escala.data_evento?.split('T')[0];
+  const ausenciasNaData = ausencias.filter((a) => a.data?.split('T')[0] === dataEscala).map((a) => a.usuario_id);
+
   const euEstouNaEscala = membrosEscala.find((m) => m.usuario_id === user.id);
 
   return (
@@ -84,7 +114,7 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, onFechar, onAtualiza
               )}
             </div>
           </div>
-          <button onClick={onFechar} className="text-gray-500 hover:text-white transition-colors mt-1">
+          <button onClick={onFechar} className="text-gray-500 hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -149,50 +179,100 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, onFechar, onAtualiza
 
         {/* Adicionar membro (admin) */}
         {isAdmin && (
-          <div className="p-6 border-t border-white/5">
+          <div className="border-t border-white/5">
             {showAdicionarMembro ? (
-              <div className="space-y-3">
-                <select
-                  className="w-full bg-[#050b18] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none"
-                  value={novoMembro.usuario_id}
-                  onChange={(e) => setNovoMembro({ ...novoMembro, usuario_id: Number(e.target.value) })}
-                >
-                  <option value="">Selecionar membro</option>
-                  {membroNaoAdicionados.map((m) => (
-                    <option key={m.id} value={m.id}>{m.nome}</option>
-                  ))}
-                </select>
-                <select
-                  className="w-full bg-[#050b18] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none"
-                  value={novoMembro.funcao_id}
-                  onChange={(e) => setNovoMembro({ ...novoMembro, funcao_id: Number(e.target.value) || '' })}
-                >
-                  <option value="">Sem funcao especifica</option>
-                  {funcoes.map((f) => (
-                    <option key={f.id} value={f.id}>{f.nome}</option>
-                  ))}
-                </select>
-                <div className="flex gap-2">
-                  <button onClick={adicionarMembro} className="flex-grow bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95">
-                    Adicionar
+              <div className="p-4">
+                {/* Header com "Selecionar todos" */}
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">
+                    {selecionados.length > 0 ? `${selecionados.length} selecionado${selecionados.length > 1 ? 's' : ''}` : 'Selecionar membros'}
+                  </span>
+                  <button
+                    onClick={toggleTodos}
+                    className="text-[10px] text-blue-400 font-bold hover:text-blue-300 transition-colors"
+                  >
+                    {selecionados.length === membroNaoAdicionados.length && membroNaoAdicionados.length > 0 ? 'Desmarcar todos' : 'Selecionar todos'}
                   </button>
-                  <button onClick={() => setShowAdicionarMembro(false)} className="px-4 text-gray-500 hover:text-white transition-colors text-sm font-bold">
+                </div>
+
+                {/* Lista de membros com checkboxes */}
+                <div className="space-y-1.5 max-h-52 overflow-y-auto mb-3">
+                  {membroNaoAdicionados.map((m) => {
+                    const ausente = ausenciasNaData.includes(m.id);
+                    const checked = selecionados.includes(m.id);
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => toggleSelecionado(m.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left ${
+                          checked ? 'bg-blue-600/15 border border-blue-500/30' : 'bg-white/3 border border-transparent hover:bg-white/5'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-all ${
+                          checked ? 'bg-blue-600 border-blue-600' : 'border-gray-600'
+                        }`}>
+                          {checked && <Check size={10} className="text-white" />}
+                        </div>
+                        <div className="w-7 h-7 rounded-full bg-gray-700 overflow-hidden flex-shrink-0">
+                          {m.foto_url ? (
+                            <img src={m.foto_url} alt={m.nome} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-500">
+                              {m.nome?.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-grow min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{m.nome}</p>
+                          {m.funcoes?.[0] && (
+                            <span className="text-[10px] text-blue-400">{m.funcoes[0].nome}</span>
+                          )}
+                        </div>
+                        {ausente && (
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <AlertCircle size={11} className="text-orange-400" />
+                            <span className="text-[9px] text-orange-400 font-bold">ausente</span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {membroNaoAdicionados.length === 0 && (
+                    <p className="text-gray-600 text-xs italic py-2">Todos os membros ja estao na escala.</p>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={adicionarSelecionados}
+                    disabled={adicionando || selecionados.length === 0}
+                    className="flex-grow bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded-xl font-bold text-sm transition-all active:scale-95 disabled:opacity-40"
+                  >
+                    {adicionando ? 'Adicionando...' : selecionados.length === 0 ? 'Selecione membros' : `Adicionar ${selecionados.length}`}
+                  </button>
+                  <button
+                    onClick={() => { setShowAdicionarMembro(false); setSelecionados([]); }}
+                    className="px-4 text-gray-500 hover:text-white transition-colors text-sm font-bold"
+                  >
                     Cancelar
                   </button>
                 </div>
               </div>
             ) : (
-              <button
-                onClick={() => setShowAdicionarMembro(true)}
-                disabled={membroNaoAdicionados.length === 0}
-                className="w-full flex items-center justify-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors py-2 disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <Plus size={15} /> Adicionar membro
-              </button>
+              <div className="p-4">
+                <button
+                  onClick={() => setShowAdicionarMembro(true)}
+                  disabled={membroNaoAdicionados.length === 0}
+                  className="w-full flex items-center justify-center gap-2 text-sm font-bold text-gray-400 hover:text-white transition-colors py-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <Plus size={15} /> Adicionar membros
+                </button>
+              </div>
             )}
           </div>
         )}
       </div>
+
     </div>
   );
 }

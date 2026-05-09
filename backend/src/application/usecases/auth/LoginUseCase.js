@@ -12,7 +12,7 @@ class LoginUseCase {
     const senhaValida = await this.hashService.comparar(senha, usuario.senha);
     if (!senhaValida) throw { status: 401, message: 'Senha incorreta!' };
 
-    const token = this.tokenService.gerar({ id: usuario.id, permissao: usuario.permissao });
+    const token = this.tokenService.gerar({ id: usuario.id, permissao: usuario.permissao, superadmin: usuario.superadmin, pode_slides: usuario.podeSlides });
     return { token, user: usuario.toAuthResponse() };
   }
 }

@@ -55,6 +55,26 @@ class UsuariosController {
       res.status(500).json({ error: err.message });
     }
   }
+
+  async listarTodos(req, res) {
+    try {
+      if (!req.user?.superadmin) return res.status(403).json({ error: 'Acesso negado.' });
+      const result = await usuarioRepo.listarTodos();
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async atualizarPermissoes(req, res) {
+    try {
+      if (!req.user?.superadmin) return res.status(403).json({ error: 'Acesso negado.' });
+      await usuarioRepo.atualizarPermissoes(req.params.id, req.body);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
 }
 
 module.exports = new UsuariosController();

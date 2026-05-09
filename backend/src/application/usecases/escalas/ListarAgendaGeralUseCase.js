@@ -3,8 +3,8 @@ class ListarAgendaGeralUseCase {
     this.escalaRepository = escalaRepository;
   }
 
-  async execute({ mes, ano }) {
-    return this.escalaRepository.listarAgendaGeral({ mes, ano });
+  async execute({ mes, ano, ministerioId }) {
+    return this.escalaRepository.listarAgendaGeral({ mes, ano, ministerioId });
   }
 }
 

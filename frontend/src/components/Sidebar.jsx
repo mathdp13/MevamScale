@@ -1,9 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Home, Church, Calendar, LogOut } from 'lucide-react';
+import { Home, Church, Calendar, LogOut, MonitorPlay } from 'lucide-react';
 import api from '../services/api';
 
-const menuItems = [
+const baseItems = [
   { label: 'Inicio', icon: Home, path: '/home' },
   { label: 'Ministerios', icon: Church, path: '/ministerios' },
   { label: 'Agenda', icon: Calendar, path: '/agenda' },
@@ -29,6 +29,13 @@ const Sidebar = () => {
       })
       .catch(() => {});
   }, []);
+
+  const menuItems = [
+    ...baseItems,
+    ...(user.superadmin || user.pode_slides
+      ? [{ label: 'Slides', icon: MonitorPlay, path: '/slides' }]
+      : []),
+  ];
 
   return (
     <aside className="hidden lg:flex w-64 bg-[#0a1a33] h-screen flex-col border-r border-white/5 fixed left-0 top-0">

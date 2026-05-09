@@ -6,6 +6,8 @@ import Home from './pages/Home';
 import Ministerio from './pages/Ministerio';
 import Ministerios from './pages/Ministerios';
 import Agenda from './pages/Agenda';
+import MinisterioPublico from './pages/MinisterioPublico';
+import Slides from './pages/Slides';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -23,6 +25,8 @@ function App() {
       <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
       <Route path="/ministerio/:id" element={<PrivateRoute><Ministerio /></PrivateRoute>} />
       <Route path="/agenda" element={<Agenda />} />
+      <Route path="/slides" element={<PrivateRoute><Slides /></PrivateRoute>} />
+      <Route path="/m/:id" element={<MinisterioPublico />} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

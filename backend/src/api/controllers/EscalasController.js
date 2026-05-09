@@ -12,6 +12,13 @@ const ConfirmarPresencaUseCase = require('../../application/usecases/escalas/Con
 const ListarMembrosEscalaUseCase = require('../../application/usecases/escalas/ListarMembrosEscalaUseCase');
 const ListarAgendaUseCase = require('../../application/usecases/escalas/ListarAgendaUseCase');
 const ListarAgendaGeralUseCase = require('../../application/usecases/escalas/ListarAgendaGeralUseCase');
+const ListarStatsUseCase = require('../../application/usecases/escalas/ListarStatsUseCase');
+const CriarAusenciaUseCase = require('../../application/usecases/escalas/CriarAusenciaUseCase');
+const ListarAusenciasUseCase = require('../../application/usecases/escalas/ListarAusenciasUseCase');
+const DeletarAusenciaUseCase = require('../../application/usecases/escalas/DeletarAusenciaUseCase');
+const CriarSubstituicaoUseCase = require('../../application/usecases/escalas/CriarSubstituicaoUseCase');
+const ListarSubstituicoesUseCase = require('../../application/usecases/escalas/ListarSubstituicoesUseCase');
+const AtualizarSubstituicaoUseCase = require('../../application/usecases/escalas/AtualizarSubstituicaoUseCase');
 
 const repo = new PgEscalaRepository();
 
@@ -64,6 +71,27 @@ class EscalasController {
     try {
       const result = await new ListarTiposCultoUseCase(repo).execute(req.params.ministerioId);
       res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async salvarFormacaoItem(req, res) {
+    try {
+      const { tipoCultoId } = req.params;
+      const { funcao_id, quantidade } = req.body;
+      const result = await repo.salvarFormacaoItem({ tipoCultoId: Number(tipoCultoId), funcaoId: Number(funcao_id), quantidade: Number(quantidade) || 1 });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async removerFormacaoItem(req, res) {
+    try {
+      const { tipoCultoId, funcaoId } = req.params;
+      await repo.removerFormacaoItem({ tipoCultoId: Number(tipoCultoId), funcaoId: Number(funcaoId) });
+      res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -137,8 +165,17 @@ class EscalasController {
 
   async agendaGeral(req, res) {
     try {
-      const { mes, ano } = req.query;
-      const result = await new ListarAgendaGeralUseCase(repo).execute({ mes, ano });
+      const { mes, ano, ministerioId } = req.query;
+      const result = await new ListarAgendaGeralUseCase(repo).execute({ mes, ano, ministerioId: ministerioId ? Number(ministerioId) : null });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async stats(req, res) {
+    try {
+      const result = await new ListarStatsUseCase(repo).execute({ ministerioId: req.params.id });
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -155,6 +192,65 @@ class EscalasController {
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
+    }
+  }
+
+  async criarAusencia(req, res) {
+    try {
+      const { usuario_id, ministerio_id, data, motivo } = req.body;
+      const result = await new CriarAusenciaUseCase(repo).execute({ usuarioId: usuario_id, ministerioId: ministerio_id, data, motivo });
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  async listarAusencias(req, res) {
+    try {
+      const { ministerioId, mes, ano } = req.query;
+      const result = await new ListarAusenciasUseCase(repo).execute({ ministerioId, mes, ano });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async deletarAusencia(req, res) {
+    try {
+      const { usuario_id } = req.body;
+      await new DeletarAusenciaUseCase(repo).execute({ id: req.params.id, usuarioId: usuario_id });
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async criarSubstituicao(req, res) {
+    try {
+      const { escala_id, solicitante_id, motivo } = req.body;
+      const result = await new CriarSubstituicaoUseCase(repo).execute({ escalaId: escala_id, solicitanteId: solicitante_id, motivo });
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  async listarSubstituicoes(req, res) {
+    try {
+      const { ministerioId, status } = req.query;
+      const result = await new ListarSubstituicoesUseCase(repo).execute({ ministerioId, status });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async atualizarSubstituicao(req, res) {
+    try {
+      const result = await new AtualizarSubstituicaoUseCase(repo).execute({ id: req.params.id, status: req.body.status });
+      res.json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
     }
   }
 }

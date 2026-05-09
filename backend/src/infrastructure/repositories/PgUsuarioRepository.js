@@ -37,6 +37,17 @@ class PgUsuarioRepository {
     );
     await pool.query('UPDATE usuarios SET onboarding_done = TRUE WHERE id = $1', [usuarioId]);
   }
+
+  async listarTodos() {
+    const { rows } = await pool.query(
+      'SELECT id, nome, email, foto_url, superadmin, pode_slides FROM usuarios ORDER BY nome ASC'
+    );
+    return rows;
+  }
+
+  async atualizarPermissoes(id, { pode_slides }) {
+    await pool.query('UPDATE usuarios SET pode_slides = $1 WHERE id = $2', [pode_slides, id]);
+  }
 }
 
 module.exports = PgUsuarioRepository;

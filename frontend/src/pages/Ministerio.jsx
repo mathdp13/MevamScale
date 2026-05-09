@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Sidebar from '../components/Sidebar';
 import toast, { Toaster } from 'react-hot-toast';
-import { ArrowLeft, Plus, Trash2, Trash, Pencil, Check, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Trash, Pencil, Check, X, Share2, BarChart2 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import EscalasTab from '../components/EscalasTab';
 
@@ -38,6 +38,10 @@ function Ministerio() {
   const [editandoNomeMin, setEditandoNomeMin] = useState(false);
   const [nomeMinTemp, setNomeMinTemp] = useState('');
   const [tabAtiva, setTabAtiva] = useState('membros');
+  const [stats, setStats] = useState([]);
+  const [substituicoes, setSubstituicoes] = useState([]);
+  const [showEditFuncoes, setShowEditFuncoes] = useState(false);
+  const [funcoesMinhasSel, setFuncoesMinhasSel] = useState([]);
 
   const carregar = async () => {
     try {
@@ -61,6 +65,16 @@ function Ministerio() {
   useEffect(() => {
     carregar();
   }, [id]);
+
+  useEffect(() => {
+    if (tabAtiva !== 'stats' || !isAdmin) return;
+    api.get(`/ministerios/${id}/stats`).then((res) => setStats(res.data)).catch(() => {});
+  }, [tabAtiva, id, isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    api.get(`/substituicoes?ministerioId=${id}&status=pendente`).then((res) => setSubstituicoes(res.data)).catch(() => {});
+  }, [id, isAdmin]);
 
   const adicionarFuncao = async () => {
     if (!novaFuncao.trim()) return;
@@ -124,6 +138,36 @@ function Ministerio() {
       toast.success('Nome atualizado!');
     } catch {
       toast.error('Erro ao atualizar nome.');
+    }
+  };
+
+  const abrirEditFuncoes = () => {
+    const meuMembro = membros.find((m) => m.id === user.id);
+    setFuncoesMinhasSel(meuMembro?.funcoes?.map((f) => f.id) || []);
+    setShowEditFuncoes(true);
+  };
+
+  const salvarMinhasFuncoes = async () => {
+    try {
+      await api.post(`/ministerios/${id}/membro-funcoes`, {
+        usuario_id: user.id,
+        funcao_ids: funcoesMinhasSel,
+      });
+      setShowEditFuncoes(false);
+      carregar();
+      toast.success('Funcoes atualizadas!');
+    } catch {
+      toast.error('Erro ao salvar funcoes.');
+    }
+  };
+
+  const responderSubstituicao = async (subId, status) => {
+    try {
+      await api.put(`/substituicoes/${subId}`, { status });
+      setSubstituicoes((prev) => prev.filter((s) => s.id !== subId));
+      toast.success(status === 'aprovado' ? 'Pedido aprovado!' : 'Pedido rejeitado.');
+    } catch {
+      toast.error('Erro ao responder pedido.');
     }
   };
 
@@ -216,19 +260,65 @@ function Ministerio() {
               </p>
             </div>
             {isAdmin && (
-              <button
-                onClick={() => setShowConfirmarExcluir(true)}
-                className="flex items-center gap-2 text-gray-600 hover:text-red-400 transition-colors text-sm"
-              >
-                <Trash size={16} /> Excluir ministerio
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.origin + '/m/' + id);
+                    toast.success('Link copiado!');
+                  }}
+                  className="flex items-center gap-1.5 text-gray-500 hover:text-blue-400 transition-colors text-sm"
+                  title="Compartilhar agenda publica"
+                >
+                  <Share2 size={15} /> Compartilhar
+                </button>
+                <button
+                  onClick={() => setShowConfirmarExcluir(true)}
+                  className="flex items-center gap-2 text-gray-600 hover:text-red-400 transition-colors text-sm"
+                >
+                  <Trash size={16} /> Excluir
+                </button>
+              </div>
             )}
           </div>
         </div>
 
+        {/* Pedidos de substituicao pendentes */}
+        {isAdmin && substituicoes.length > 0 && (
+          <div className="mb-6 max-w-lg space-y-2">
+            <p className="text-[10px] text-orange-400 font-bold uppercase tracking-widest mb-3">
+              {substituicoes.length} pedido{substituicoes.length > 1 ? 's' : ''} de substituto
+            </p>
+            {substituicoes.map((s) => (
+              <div key={s.id} className="bg-orange-500/10 border border-orange-500/20 rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{s.solicitante_nome}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">
+                    {s.escala_nome} · {s.data_evento?.split('T')[0].split('-').reverse().join('/')}
+                  </p>
+                  {s.motivo && <p className="text-[10px] text-gray-600 mt-0.5 italic">{s.motivo}</p>}
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => responderSubstituicao(s.id, 'aprovado')}
+                    className="text-xs font-bold bg-green-600/20 text-green-400 hover:bg-green-600/30 px-3 py-1.5 rounded-xl transition-all"
+                  >
+                    Aprovar
+                  </button>
+                  <button
+                    onClick={() => responderSubstituicao(s.id, 'rejeitado')}
+                    className="text-xs font-bold bg-white/5 text-gray-500 hover:text-red-400 px-3 py-1.5 rounded-xl transition-all"
+                  >
+                    Rejeitar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-1 mb-8 bg-[#0a1a33] p-1 rounded-2xl w-fit">
-          {['membros', 'escalas', ...(isAdmin ? ['funcoes'] : [])].map((tab) => (
+          {['membros', 'escalas', ...(isAdmin ? ['funcoes', 'stats'] : [])].map((tab) => (
             <button
               key={tab}
               onClick={() => setTabAtiva(tab)}
@@ -236,7 +326,7 @@ function Ministerio() {
                 tabAtiva === tab ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-white'
               }`}
             >
-              {tab}
+              {tab === 'stats' ? <BarChart2 size={14} /> : tab}
             </button>
           ))}
         </div>
@@ -272,9 +362,20 @@ function Ministerio() {
                       </div>
                     )}
                   </div>
-                  {m.permissao === 'admin' && (
-                    <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest flex-shrink-0">Admin</span>
-                  )}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {m.permissao === 'admin' && (
+                      <span className="text-[10px] text-yellow-500 font-bold uppercase tracking-widest">Admin</span>
+                    )}
+                    {m.id === user.id && (
+                      <button
+                        onClick={abrirEditFuncoes}
+                        className="text-gray-600 hover:text-blue-400 transition-colors"
+                        title="Editar minhas funcoes"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
               {membros.length === 0 && (
@@ -283,6 +384,43 @@ function Ministerio() {
             </div>
           </div>
         </div>
+        )}
+
+        {tabAtiva === 'stats' && isAdmin && (
+          <div className="max-w-lg">
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Participacao dos membros</h2>
+            {stats.length === 0 && <p className="text-gray-600 italic text-sm">Nenhum dado ainda.</p>}
+            <div className="space-y-3">
+              {stats.map((s, i) => {
+                const taxa = s.total_participacoes > 0 ? Math.round((s.total_confirmados / s.total_participacoes) * 100) : 0;
+                return (
+                  <div key={s.id} className="bg-[#0a1a33] px-4 py-3 rounded-2xl border border-white/5 flex items-center gap-4">
+                    <span className="text-gray-700 text-xs font-bold w-5 text-right flex-shrink-0">{i + 1}</span>
+                    <div className="w-9 h-9 rounded-full bg-blue-600/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {s.foto_url ? (
+                        <img src={s.foto_url} alt={s.nome} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs font-bold text-blue-400">{s.nome?.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="flex-grow min-w-0">
+                      <p className="text-sm font-bold truncate">{s.nome}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-grow bg-white/5 rounded-full h-1.5">
+                          <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${taxa}%` }} />
+                        </div>
+                        <span className="text-[10px] text-gray-500 flex-shrink-0">{taxa}%</span>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-white font-bold text-sm">{s.total_participacoes}</p>
+                      <p className="text-[10px] text-gray-600">escalas</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {tabAtiva === 'funcoes' && isAdmin && (
@@ -356,6 +494,47 @@ function Ministerio() {
       </main>
 
       <BottomNav />
+
+      {/* Modal: editar próprias funções */}
+      {showEditFuncoes && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0a1a33] w-full max-w-sm rounded-3xl p-7 border border-white/10">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-lg font-bold text-white">Minhas funcoes</h3>
+              <button onClick={() => setShowEditFuncoes(false)} className="text-gray-500 hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            {funcoes.length === 0 ? (
+              <p className="text-gray-500 text-sm italic">Nenhuma funcao cadastrada neste ministerio.</p>
+            ) : (
+              <div className="space-y-2 mb-5">
+                {funcoes.map((f) => (
+                  <label key={f.id} className="flex items-center gap-3 bg-white/5 px-4 py-3 rounded-xl cursor-pointer hover:bg-white/10 transition-colors">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-blue-500"
+                      checked={funcoesMinhasSel.includes(f.id)}
+                      onChange={(e) => {
+                        setFuncoesMinhasSel((prev) =>
+                          e.target.checked ? [...prev, f.id] : prev.filter((id) => id !== f.id)
+                        );
+                      }}
+                    />
+                    <span className="text-sm text-white">{f.nome}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={salvarMinhasFuncoes}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-2xl font-bold text-sm transition-all active:scale-95"
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
+      )}
 
       {showConfirmarExcluir && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">

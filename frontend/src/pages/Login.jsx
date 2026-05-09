@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
@@ -6,60 +6,55 @@ import { GoogleLogin } from '@react-oauth/google';
 import { ChevronRight } from 'lucide-react';
 
 const MESES_CURTO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const DIAS_NOME = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-
-function proximoEventoData() {
-  const hoje = new Date();
-  const dow = hoje.getDay();
-  const candidatos = [
-    { dia_semana: 0, hora: '10h' },
-    { dia_semana: 3, hora: '20h' },
-  ];
-  let melhor = null;
-  let minDias = Infinity;
-  for (const c of candidatos) {
-    let dias = c.dia_semana - dow;
-    if (dias < 0) dias += 7;
-    if (dias < minDias) {
-      minDias = dias;
-      const data = new Date(hoje);
-      data.setDate(hoje.getDate() + dias);
-      melhor = { data, hora: c.hora };
-    }
-  }
-  return melhor;
-}
+const MESES_LONGO = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DIAS_NOME = ['Domingo','Segunda','Terca','Quarta','Quinta','Sexta','Sabado'];
 
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [proximoEvento, setProximoEvento] = useState(null);
+  const [carouselItems, setCarouselItems] = useState([]);
+  const [carouselIdx, setCarouselIdx] = useState(0);
 
   useEffect(() => {
     const buscar = async () => {
-      const prox = proximoEventoData();
-      if (!prox) return;
-      const mes = prox.data.getMonth() + 1;
-      const ano = prox.data.getFullYear();
-      const diaNum = prox.data.getDate();
       try {
-        const res = await api.get(`/agenda/geral?mes=${mes}&ano=${ano}`);
-        const escalasDodia = res.data.filter((e) => {
-          const d = parseInt(e.data_evento.split('T')[0].split('-')[2], 10);
-          return d === diaNum;
-        });
-        if (escalasDodia.length > 0) {
-          setProximoEvento({
-            data: prox.data,
-            hora: prox.hora,
-            ministerios: escalasDodia.map((e) => e.ministerio_nome),
-          });
-        }
+        const hoje = new Date();
+        const mes = hoje.getMonth() + 1;
+        const ano = hoje.getFullYear();
+
+        const [slidesRes, agendaRes] = await Promise.allSettled([
+          api.get('/slides-login'),
+          api.get(`/agenda/geral?mes=${mes}&ano=${ano}`),
+        ]);
+
+        const slidesAdmin = slidesRes.status === 'fulfilled' ? slidesRes.value.data : [];
+        const agendaItems = agendaRes.status === 'fulfilled' ? agendaRes.value.data : [];
+
+        const eventos = agendaItems
+          .filter((e) => {
+            const d = new Date(e.data_evento.split('T')[0] + 'T12:00:00');
+            return d >= hoje;
+          })
+          .slice(0, 3)
+          .map((e) => ({ type: 'evento', ...e }));
+
+        const todos = [
+          ...slidesAdmin.map((s) => ({ type: 'slide', ...s })),
+          ...eventos,
+        ];
+
+        if (todos.length > 0) setCarouselItems(todos);
       } catch {}
     };
     buscar();
   }, []);
+
+  useEffect(() => {
+    if (carouselItems.length < 2) return;
+    const t = setInterval(() => setCarouselIdx((i) => (i + 1) % carouselItems.length), 3000);
+    return () => clearInterval(t);
+  }, [carouselItems]);
 
   const handleAuthSuccess = (data, toastId) => {
     localStorage.setItem('token', data.token);
@@ -70,14 +65,12 @@ function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const toastId = toast.loading('Autenticando...', {
-      style: { background: '#0a1a33', color: '#fff' },
-    });
+    const toastId = toast.loading('Autenticando...', { style: { background: '#0a1a33', color: '#fff' } });
     try {
       const response = await api.post('/login', { email, senha });
       handleAuthSuccess(response.data, toastId);
     } catch {
-      toast.error('E-mail ou senha inválidos!', { id: toastId });
+      toast.error('E-mail ou senha invalidos!', { id: toastId });
     }
   };
 
@@ -91,88 +84,178 @@ function Login() {
     }
   };
 
+  const item = carouselItems[carouselIdx] || null;
+
   return (
-    <div className="min-h-screen bg-[#050b18] flex flex-col items-center justify-center p-4 gap-4 font-sans">
+    <div className="min-h-screen bg-[#050b18] flex font-sans">
       <Toaster position="top-center" reverseOrder={false} />
 
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div className="bg-[#0a1a33] py-10 text-center">
-          <h1 className="text-white text-3xl font-bold tracking-tighter">
-            MEVAM <span className="font-light opacity-70">SCALE</span>
-          </h1>
+      {/* Lado esquerdo — carousel (apenas desktop) */}
+      <div className="hidden lg:flex flex-col w-[55%] relative overflow-hidden bg-[#050b18]">
+        {item ? (
+          <div className="absolute inset-0 transition-all duration-700">
+            {item.imagem_url ? (
+              <img
+                key={item.id}
+                src={item.imagem_url}
+                alt={item.titulo}
+                className="w-full h-full object-cover opacity-60"
+              />
+            ) : (
+              <div
+                key={item.id || item.nome}
+                className="w-full h-full bg-gradient-to-br from-[#0a1a33] via-[#0d2347] to-[#050b18]"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          </div>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0a1a33] via-[#0d2347] to-[#050b18]" />
+        )}
+
+        {/* Conteudo do slide */}
+        <div className="relative z-10 flex flex-col h-full p-12">
+          <div className="text-white text-xl font-bold tracking-tighter">
+            MEVAM <span className="font-light opacity-60">SCALE</span>
+          </div>
+
+          <div className="flex-grow" />
+
+          {item && (
+            <div className="mb-8">
+              {item.type === 'evento' ? (
+                <>
+                  <div className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-3">
+                    {(() => {
+                      const d = new Date(item.data_evento.split('T')[0] + 'T12:00:00');
+                      return `${DIAS_NOME[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')} de ${MESES_LONGO[d.getMonth()]}`;
+                    })()}
+                  </div>
+                  <h2 className="text-white text-3xl font-black tracking-tighter leading-tight mb-2">
+                    {item.nome}
+                  </h2>
+                  {item.ministerio_nome && (
+                    <p className="text-gray-400 text-sm font-bold">{item.ministerio_nome}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h2 className="text-white text-3xl font-black tracking-tighter leading-tight mb-2">
+                    {item.titulo}
+                  </h2>
+                  {item.subtitulo && (
+                    <p className="text-gray-400 text-base">{item.subtitulo}</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Dots */}
+          {carouselItems.length > 1 && (
+            <div className="flex gap-2">
+              {carouselItems.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCarouselIdx(i)}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === carouselIdx ? 'w-6 bg-blue-400' : 'w-1.5 bg-white/20'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        <form onSubmit={handleLogin} className="p-8 space-y-6">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">E-mail</label>
-            <input
-              type="email"
-              className="w-full border-b-2 border-gray-100 p-2 focus:border-[#0a1a33] outline-none transition-all text-gray-700"
-              placeholder="Digite seu e-mail"
-              value={email} onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Senha</label>
-            <input
-              type="password"
-              className="w-full border-b-2 border-gray-100 p-2 focus:border-[#0a1a33] outline-none transition-all text-gray-700"
-              placeholder="••••••••"
-              value={senha} onChange={(e) => setSenha(e.target.value)}
-            />
-          </div>
-          <button type="submit" className="w-full bg-[#0a1a33] text-white font-bold py-4 rounded-xl hover:bg-[#112a52] transition-all shadow-lg active:scale-95 mt-4">
-            ENTRAR
-          </button>
-          <div className="relative flex items-center py-2">
-            <div className="flex-grow border-t border-gray-200" />
-            <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase font-bold tracking-widest">OU</span>
-            <div className="flex-grow border-t border-gray-200" />
-          </div>
-          <div className="flex justify-center">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => toast.error('Erro ao se autenticar com o Google!')}
-            />
-          </div>
-          <div className="text-center mt-4">
-            <p className="text-sm text-gray-500">
-              Não tem uma conta?{' '}
-              <button type="button" onClick={() => navigate('/registro')} className="text-[#0a1a33] font-bold hover:underline underline-offset-4">
-                Se registre aqui
-              </button>
-            </p>
-          </div>
-        </form>
       </div>
 
-      {/* Card do proximo evento */}
-      {proximoEvento && (
-        <button
-          onClick={() => navigate('/agenda')}
-          className="w-full max-w-sm bg-[#0a1a33]/80 border border-white/10 rounded-2xl px-5 py-4 flex items-center justify-between hover:border-blue-500/30 transition-all group"
-        >
-          <div className="text-left">
-            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mb-1">
-              Próximo evento
-            </p>
-            <p className="text-white font-bold text-sm">
-              {DIAS_NOME[proximoEvento.data.getDay()]},{' '}
-              {String(proximoEvento.data.getDate()).padStart(2, '0')}{' '}
-              {MESES_CURTO[proximoEvento.data.getMonth()]} · {proximoEvento.hora}
-            </p>
+      {/* Lado direito — formulario */}
+      <div className="flex-grow lg:w-[45%] flex flex-col items-center justify-center p-8">
+        <div className="w-full max-w-sm">
+          {/* Logo mobile */}
+          <div className="lg:hidden text-center mb-8">
+            <h1 className="text-white text-3xl font-bold tracking-tighter">
+              MEVAM <span className="font-light opacity-60">SCALE</span>
+            </h1>
           </div>
-          <ChevronRight size={16} className="text-gray-700 group-hover:text-blue-400 transition-colors flex-shrink-0" />
-        </button>
-      )}
 
-      {!proximoEvento && (
-        <button
-          onClick={() => navigate('/agenda')}
-          className="text-xs text-gray-700 hover:text-gray-500 transition-colors"
-        >
-          Ver agenda geral
-        </button>
-      )}
+          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="hidden lg:block bg-[#0a1a33] py-8 text-center">
+              <h1 className="text-white text-2xl font-bold tracking-tighter">
+                MEVAM <span className="font-light opacity-70">SCALE</span>
+              </h1>
+            </div>
+            <form onSubmit={handleLogin} className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">E-mail</label>
+                <input
+                  type="email"
+                  className="w-full border-b-2 border-gray-100 p-2 focus:border-[#0a1a33] outline-none transition-all text-gray-700"
+                  placeholder="Digite seu e-mail"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Senha</label>
+                <input
+                  type="password"
+                  className="w-full border-b-2 border-gray-100 p-2 focus:border-[#0a1a33] outline-none transition-all text-gray-700"
+                  placeholder="••••••••"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-[#0a1a33] text-white font-bold py-4 rounded-xl hover:bg-[#112a52] transition-all shadow-lg active:scale-95"
+              >
+                ENTRAR
+              </button>
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-gray-200" />
+                <span className="flex-shrink mx-4 text-gray-400 text-xs uppercase font-bold tracking-widest">OU</span>
+                <div className="flex-grow border-t border-gray-200" />
+              </div>
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => toast.error('Erro ao se autenticar com o Google!')}
+                />
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-500">
+                  Nao tem uma conta?{' '}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/registro')}
+                    className="text-[#0a1a33] font-bold hover:underline underline-offset-4"
+                  >
+                    Se registre aqui
+                  </button>
+                </p>
+              </div>
+            </form>
+          </div>
+
+          {/* Card do proximo evento mobile */}
+          {item?.type === 'evento' && (
+            <div className="lg:hidden mt-4">
+              <div className="bg-[#0a1a33]/80 border border-white/10 rounded-2xl px-5 py-4">
+                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mb-1">
+                  Proximo evento
+                </p>
+                <p className="text-white font-bold text-sm">
+                  {(() => {
+                    const d = new Date(item.data_evento.split('T')[0] + 'T12:00:00');
+                    return `${DIAS_NOME[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')} ${MESES_CURTO[d.getMonth()]}`;
+                  })()}
+                </p>
+                <p className="text-gray-500 text-xs mt-0.5">{item.nome}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

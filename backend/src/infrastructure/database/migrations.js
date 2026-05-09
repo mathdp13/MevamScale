@@ -24,6 +24,8 @@ const run = async () => {
       `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto_url TEXT`,
       `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS telefone VARCHAR(20)`,
       `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS data_nascimento DATE`,
+      `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS superadmin BOOLEAN DEFAULT FALSE`,
+      `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pode_slides BOOLEAN DEFAULT FALSE`,
     ];
     for (const sql of alteracoesUsuarios) await pool.query(sql);
 
@@ -157,6 +159,66 @@ const run = async () => {
         funcao_id INTEGER REFERENCES ministerio_funcoes(id) ON DELETE SET NULL,
         confirmado BOOLEAN DEFAULT FALSE,
         UNIQUE(escala_id, usuario_id)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pedidos_ausencia (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+        ministerio_id INTEGER REFERENCES ministerios(id) ON DELETE CASCADE,
+        data DATE NOT NULL,
+        motivo TEXT,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(usuario_id, ministerio_id, data)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pedidos_substituicao (
+        id SERIAL PRIMARY KEY,
+        escala_id INTEGER REFERENCES escalas(id) ON DELETE CASCADE,
+        solicitante_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+        status VARCHAR(20) DEFAULT 'pendente' CHECK (status IN ('pendente', 'aprovado', 'rejeitado')),
+        motivo TEXT,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS slides_login (
+        id SERIAL PRIMARY KEY,
+        titulo VARCHAR(200) NOT NULL,
+        subtitulo TEXT,
+        imagem_url TEXT,
+        ativo BOOLEAN DEFAULT TRUE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`ALTER TABLE ministerios ADD COLUMN IF NOT EXISTS dia_limite_ausencias INTEGER`);
+
+    await pool.query(`ALTER TABLE slides_login ADD COLUMN IF NOT EXISTS data_inicio DATE`);
+    await pool.query(`ALTER TABLE slides_login ADD COLUMN IF NOT EXISTS data_fim DATE`);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tipo_culto_formacao (
+        id SERIAL PRIMARY KEY,
+        tipo_culto_id INTEGER REFERENCES tipos_culto(id) ON DELETE CASCADE,
+        funcao_id INTEGER REFERENCES ministerio_funcoes(id) ON DELETE CASCADE,
+        quantidade INTEGER NOT NULL DEFAULT 1,
+        UNIQUE(tipo_culto_id, funcao_id)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escala_config (
+        id SERIAL PRIMARY KEY,
+        ministerio_id INTEGER REFERENCES ministerios(id) ON DELETE CASCADE,
+        mes INTEGER NOT NULL,
+        ano INTEGER NOT NULL,
+        data_limite_ausencias DATE,
+        UNIQUE(ministerio_id, mes, ano)
       );
     `);
 

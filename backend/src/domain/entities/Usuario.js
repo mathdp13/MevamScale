@@ -1,5 +1,5 @@
 class Usuario {
-  constructor({ id, nome, email, senha, permissao, onboarding_done, google_id, foto_url, telefone, data_nascimento }) {
+  constructor({ id, nome, email, senha, permissao, onboarding_done, google_id, foto_url, telefone, data_nascimento, superadmin, pode_slides }) {
     this.id = id;
     this.nome = nome;
     this.email = email;
@@ -10,6 +10,8 @@ class Usuario {
     this.fotoUrl = foto_url;
     this.telefone = telefone;
     this.dataNascimento = data_nascimento;
+    this.superadmin = superadmin || false;
+    this.podeSlides = pode_slides || false;
   }
 
   toPublic() {
@@ -31,6 +33,8 @@ class Usuario {
       nome: this.nome,
       permissao: this.permissao,
       onboardingDone: this.onboardingDone,
+      superadmin: this.superadmin,
+      pode_slides: this.podeSlides,
     };
   }
 }

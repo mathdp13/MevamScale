@@ -5,6 +5,8 @@ const ctrl = require('../controllers/EscalasController');
 router.get('/ministerios/:ministerioId/tipos-culto', (req, res) => ctrl.listarTiposCulto(req, res));
 router.post('/ministerios/:ministerioId/tipos-culto', (req, res) => ctrl.criarTipoCulto(req, res));
 router.delete('/ministerios/:ministerioId/tipos-culto/:tipoCultoId', (req, res) => ctrl.deletarTipoCulto(req, res));
+router.post('/ministerios/:ministerioId/tipos-culto/:tipoCultoId/formacao', (req, res) => ctrl.salvarFormacaoItem(req, res));
+router.delete('/ministerios/:ministerioId/tipos-culto/:tipoCultoId/formacao/:funcaoId', (req, res) => ctrl.removerFormacaoItem(req, res));
 
 // Agenda pessoal
 router.get('/agenda', (req, res) => ctrl.agenda(req, res));
@@ -21,5 +23,15 @@ router.get('/escalas/:escalaId/membros', (req, res) => ctrl.listarMembros(req, r
 router.post('/escalas/:escalaId/membros', (req, res) => ctrl.adicionarMembro(req, res));
 router.delete('/escalas/:escalaId/membros/:usuarioId', (req, res) => ctrl.removerMembro(req, res));
 router.put('/escalas/:escalaId/membros/:usuarioId/confirmar', (req, res) => ctrl.confirmarPresenca(req, res));
+
+// Ausencias
+router.post('/ausencias', (req, res) => ctrl.criarAusencia(req, res));
+router.get('/ausencias', (req, res) => ctrl.listarAusencias(req, res));
+router.delete('/ausencias/:id', (req, res) => ctrl.deletarAusencia(req, res));
+
+// Substituicoes
+router.post('/substituicoes', (req, res) => ctrl.criarSubstituicao(req, res));
+router.get('/substituicoes', (req, res) => ctrl.listarSubstituicoes(req, res));
+router.put('/substituicoes/:id', (req, res) => ctrl.atualizarSubstituicao(req, res));
 
 module.exports = router;

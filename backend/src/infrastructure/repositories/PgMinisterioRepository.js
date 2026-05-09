@@ -93,6 +93,14 @@ class PgMinisterioRepository {
     return rows[0];
   }
 
+  async atualizarDiaLimite({ ministerioId, dia }) {
+    const { rows } = await pool.query(
+      'UPDATE ministerios SET dia_limite_ausencias = $1 WHERE id = $2 RETURNING *',
+      [dia || null, ministerioId]
+    );
+    return rows[0];
+  }
+
   async atualizarFuncao({ funcaoId, ministerioId, nome }) {
     const { rows } = await pool.query(
       'UPDATE ministerio_funcoes SET nome = $1 WHERE id = $2 AND ministerio_id = $3 RETURNING *',
@@ -138,6 +146,25 @@ class PgMinisterioRepository {
       [usuarioId, ministerioId]
     );
     return rows;
+  }
+
+  async getEscalaConfig({ ministerioId, mes, ano }) {
+    const { rows } = await pool.query(
+      'SELECT * FROM escala_config WHERE ministerio_id = $1 AND mes = $2 AND ano = $3',
+      [ministerioId, Number(mes), Number(ano)]
+    );
+    return rows[0] || null;
+  }
+
+  async setEscalaConfig({ ministerioId, mes, ano, dataLimiteAusencias }) {
+    const { rows } = await pool.query(
+      `INSERT INTO escala_config (ministerio_id, mes, ano, data_limite_ausencias)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (ministerio_id, mes, ano) DO UPDATE SET data_limite_ausencias = $4
+       RETURNING *`,
+      [ministerioId, Number(mes), Number(ano), dataLimiteAusencias || null]
+    );
+    return rows[0];
   }
 }
 
