@@ -42,8 +42,19 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
   const carregarTiposCulto = async () => {
     try {
       const res = await api.get(`/ministerios/${ministerioId}/tipos-culto`);
-      setTiposCulto(res.data);
-      salvarCache(`tipos_culto_${ministerioId}`, res.data);
+      let tipos = res.data;
+
+      if (tipos.length === 0 && isAdmin) {
+        await Promise.all([
+          api.post(`/ministerios/${ministerioId}/tipos-culto`, { nome: 'Culto de Domingo', dia_semana: 0 }),
+          api.post(`/ministerios/${ministerioId}/tipos-culto`, { nome: 'Culto de Quarta', dia_semana: 3 }),
+        ]);
+        const res2 = await api.get(`/ministerios/${ministerioId}/tipos-culto`);
+        tipos = res2.data;
+      }
+
+      setTiposCulto(tipos);
+      salvarCache(`tipos_culto_${ministerioId}`, tipos);
     } catch {}
   };
 

@@ -35,6 +35,8 @@ function Ministerio() {
   const [deletando, setDeletando] = useState(false);
   const [editandoFuncaoId, setEditandoFuncaoId] = useState(null);
   const [nomeEditando, setNomeEditando] = useState('');
+  const [editandoNomeMin, setEditandoNomeMin] = useState(false);
+  const [nomeMinTemp, setNomeMinTemp] = useState('');
   const [tabAtiva, setTabAtiva] = useState('membros');
 
   const carregar = async () => {
@@ -107,6 +109,24 @@ function Ministerio() {
     }
   };
 
+  const salvarNomeMinisterio = async () => {
+    if (!nomeMinTemp.trim() || nomeMinTemp.trim() === ministerio.nome) {
+      setEditandoNomeMin(false);
+      return;
+    }
+    try {
+      const res = await api.put(`/ministerios/${id}`, { nome: nomeMinTemp.trim() });
+      setMinisterio((prev) => ({ ...prev, nome: res.data.nome }));
+      salvarCache(id, { ministerio: { ...ministerio, nome: res.data.nome }, membros, funcoes });
+      const cache = JSON.parse(localStorage.getItem('ministerios_cache') || '[]');
+      localStorage.setItem('ministerios_cache', JSON.stringify(cache.map((m) => m.id === Number(id) ? { ...m, nome: res.data.nome } : m)));
+      setEditandoNomeMin(false);
+      toast.success('Nome atualizado!');
+    } catch {
+      toast.error('Erro ao atualizar nome.');
+    }
+  };
+
   const deletarFuncao = async (funcaoId) => {
     try {
       await api.delete(`/ministerios/${id}/funcoes/${funcaoId}`);
@@ -166,7 +186,31 @@ function Ministerio() {
           </button>
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold tracking-tighter text-blue-400">{ministerio.nome}</h1>
+              {editandoNomeMin ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    className="text-3xl font-bold tracking-tighter text-blue-400 bg-transparent border-b border-blue-500 outline-none w-64"
+                    value={nomeMinTemp}
+                    onChange={(e) => setNomeMinTemp(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') salvarNomeMinisterio(); if (e.key === 'Escape') setEditandoNomeMin(false); }}
+                    autoFocus
+                  />
+                  <button onClick={salvarNomeMinisterio} className="text-green-400 hover:text-green-300 transition-colors"><Check size={18} /></button>
+                  <button onClick={() => setEditandoNomeMin(false)} className="text-gray-500 hover:text-white transition-colors"><X size={18} /></button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group">
+                  <h1 className="text-3xl font-bold tracking-tighter text-blue-400">{ministerio.nome}</h1>
+                  {isAdmin && (
+                    <button
+                      onClick={() => { setNomeMinTemp(ministerio.nome); setEditandoNomeMin(true); }}
+                      className="text-gray-700 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
               <p className="text-gray-600 font-mono text-xs mt-1 tracking-widest uppercase">
                 Codigo: {ministerio.codigo_acesso}
               </p>
@@ -257,7 +301,6 @@ function Ministerio() {
               <div className="mb-4 flex gap-2">
                 <input
                   className="flex-grow bg-[#0a1a33] border border-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500"
-                  placeholder="Ex: Guitarra"
                   value={novaFuncao}
                   onChange={(e) => setNovaFuncao(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && adicionarFuncao()}

@@ -115,6 +115,30 @@ class PgEscalaRepository {
     );
   }
 
+  async listarAgendaGeral({ mes, ano }) {
+    const { rows } = await pool.query(
+      `SELECT
+        e.id, e.nome, e.data_evento, e.data_ensaio,
+        m.nome AS ministerio_nome,
+        COUNT(em.id)::int AS total_membros,
+        JSON_AGG(
+          JSON_BUILD_OBJECT('nome', u.nome, 'funcao', mf.nome, 'confirmado', em.confirmado)
+          ORDER BY u.nome
+        ) FILTER (WHERE u.id IS NOT NULL) AS membros
+       FROM escalas e
+       JOIN ministerios m ON m.id = e.ministerio_id
+       LEFT JOIN escala_membros em ON em.escala_id = e.id
+       LEFT JOIN usuarios u ON u.id = em.usuario_id
+       LEFT JOIN ministerio_funcoes mf ON mf.id = em.funcao_id
+       WHERE EXTRACT(MONTH FROM e.data_evento) = $1
+         AND EXTRACT(YEAR FROM e.data_evento) = $2
+       GROUP BY e.id, m.nome
+       ORDER BY e.data_evento ASC`,
+      [mes, ano]
+    );
+    return rows;
+  }
+
   async listarAgenda({ usuarioId, mes, ano }) {
     const { rows } = await pool.query(
       `SELECT

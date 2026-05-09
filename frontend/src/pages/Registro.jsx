@@ -20,7 +20,7 @@ function Registro() {
       toast.success("Cadastro realizado! Agora é só logar.", { id: loadId });
       
       setTimeout(() => {
-        navigate('/'); // Volta para a tela de login após 2 segundos
+        navigate('/login'); // Volta para a tela de login após 2 segundos
       }, 2000);
 
     } catch (error) {
@@ -80,7 +80,7 @@ function Registro() {
           <div className="text-center mt-4">
             <button 
               type="button"
-              onClick={() => navigate('/')} 
+              onClick={() => navigate('/login')} 
               className="text-[11px] text-gray-400 hover:text-[#0a1a33] transition-colors font-medium"
             >
               Já possui conta? <span className="underline decoration-1 underline-offset-4">Fazer Login</span>

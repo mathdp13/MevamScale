@@ -8,6 +8,7 @@ router.delete('/ministerios/:ministerioId/tipos-culto/:tipoCultoId', (req, res) 
 
 // Agenda pessoal
 router.get('/agenda', (req, res) => ctrl.agenda(req, res));
+router.get('/agenda/geral', (req, res) => ctrl.agendaGeral(req, res));
 
 // Escalas
 router.get('/escalas', (req, res) => ctrl.listar(req, res));
