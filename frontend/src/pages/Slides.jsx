@@ -1,17 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Upload, ImageOff, MonitorPlay, Calendar, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Trash2, ImageOff, MonitorPlay, Calendar, ToggleLeft, ToggleRight, Upload } from 'lucide-react';
+
+function parseData(v) {
+  if (!v) return null;
+  const d = new Date(typeof v === 'string' && v.length === 10 ? v + 'T00:00:00' : v);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatarData(v) {
+  const d = parseData(v);
+  return d ? d.toLocaleDateString('pt-BR') : null;
+}
 
 function statusSlide(slide) {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   if (!slide.ativo) return { label: 'Inativo', color: 'text-gray-500 bg-gray-500/10' };
-  const inicio = slide.data_inicio ? new Date(slide.data_inicio + 'T00:00:00') : null;
-  const fim = slide.data_fim ? new Date(slide.data_fim + 'T00:00:00') : null;
+  const inicio = parseData(slide.data_inicio);
+  const fim = parseData(slide.data_fim);
   if (inicio && inicio > hoje) return { label: 'Agendado', color: 'text-yellow-400 bg-yellow-400/10' };
   if (fim && fim < hoje) return { label: 'Expirado', color: 'text-red-400 bg-red-400/10' };
   return { label: 'Ativo', color: 'text-green-400 bg-green-400/10' };
@@ -20,7 +31,6 @@ function statusSlide(slide) {
 function Slides() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const fileRef = useRef(null);
 
   const [slides, setSlides] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -28,10 +38,21 @@ function Slides() {
 
   const [titulo, setTitulo] = useState('');
   const [subtitulo, setSubtitulo] = useState('');
+  const [imagemFile, setImagemFile] = useState(null);
+  const [imagemPreview, setImagemPreview] = useState('');
   const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
-  const [imagemFile, setImagemFile] = useState(null);
-  const [imagemPreview, setImagemPreview] = useState(null);
+
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Imagem muito grande. Use uma foto menor que 10MB.');
+      return;
+    }
+    setImagemFile(file);
+    setImagemPreview(URL.createObjectURL(file));
+  };
 
   useEffect(() => {
     if (!user.superadmin && !user.pode_slides) {
@@ -53,31 +74,25 @@ function Slides() {
     }
   };
 
-  const handleImagem = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setImagemFile(file);
-    setImagemPreview(URL.createObjectURL(file));
-  };
-
   const criarSlide = async () => {
     if (!titulo.trim()) return toast.error('Titulo obrigatorio.');
     setSalvando(true);
     try {
-      const formData = new FormData();
-      formData.append('titulo', titulo);
-      formData.append('subtitulo', subtitulo);
-      if (dataInicio) formData.append('data_inicio', dataInicio);
-      if (dataFim) formData.append('data_fim', dataFim);
-      if (imagemFile) formData.append('imagem', imagemFile);
-      await api.post('/slides-login', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const form = new FormData();
+      form.append('titulo', titulo);
+      if (subtitulo) form.append('subtitulo', subtitulo);
+      if (imagemFile) form.append('imagem', imagemFile);
+      if (dataInicio) form.append('data_inicio', dataInicio);
+      if (dataFim) form.append('data_fim', dataFim);
+
+      await api.post('/slides-login', form);
       toast.success('Slide criado!');
       setTitulo('');
       setSubtitulo('');
+      setImagemFile(null);
+      setImagemPreview('');
       setDataInicio('');
       setDataFim('');
-      setImagemFile(null);
-      setImagemPreview(null);
       carregarSlides();
     } catch (err) {
       const detail = err.response?.data?.detail || err.response?.data?.error || 'Erro ao criar slide.';
@@ -147,12 +162,12 @@ function Slides() {
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
                         </div>
                         {s.subtitulo && <p className="text-[10px] text-gray-500 truncate">{s.subtitulo}</p>}
-                        {(s.data_inicio || s.data_fim) && (
+                        {(formatarData(s.data_inicio) || formatarData(s.data_fim)) && (
                           <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-1">
                             <Calendar size={9} />
-                            {s.data_inicio ? new Date(s.data_inicio + 'T00:00:00').toLocaleDateString('pt-BR') : '...'}
+                            {formatarData(s.data_inicio) || '...'}
                             {' - '}
-                            {s.data_fim ? new Date(s.data_fim + 'T00:00:00').toLocaleDateString('pt-BR') : 'sem fim'}
+                            {formatarData(s.data_fim) || 'sem fim'}
                           </p>
                         )}
                       </div>
@@ -194,6 +209,24 @@ function Slides() {
                 value={subtitulo}
                 onChange={(e) => setSubtitulo(e.target.value)}
               />
+              <div>
+                {imagemPreview ? (
+                  <div className="relative">
+                    <img src={imagemPreview} alt="preview" className="w-full h-36 object-cover rounded-xl opacity-80" />
+                    <button
+                      onClick={() => { setImagemFile(null); setImagemPreview(''); }}
+                      className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-lg hover:bg-red-600/80 transition-all"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                ) : (
+                  <label className="w-full border border-dashed border-white/10 rounded-xl py-4 flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-gray-300 hover:border-white/20 transition-all cursor-pointer">
+                    <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+                    <Upload size={14} /> Carregar foto (opcional)
+                  </label>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] text-gray-600 uppercase tracking-widest block mb-1">Exibir a partir de</label>
@@ -213,21 +246,6 @@ function Slides() {
                     onChange={(e) => setDataFim(e.target.value)}
                   />
                 </div>
-              </div>
-              <div>
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImagem} />
-                <button
-                  onClick={() => fileRef.current.click()}
-                  className="w-full border border-dashed border-white/10 rounded-xl py-3 flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-gray-300 hover:border-white/20 transition-all"
-                >
-                  {imagemPreview ? (
-                    <img src={imagemPreview} alt="preview" className="h-8 rounded object-cover" />
-                  ) : (
-                    <>
-                      <Upload size={14} /> Selecionar imagem (opcional)
-                    </>
-                  )}
-                </button>
               </div>
               <button
                 onClick={criarSlide}

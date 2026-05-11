@@ -217,8 +217,7 @@ class EscalasController {
 
   async deletarAusencia(req, res) {
     try {
-      const { usuario_id } = req.body;
-      await new DeletarAusenciaUseCase(repo).execute({ id: req.params.id, usuarioId: usuario_id });
+      await new DeletarAusenciaUseCase(repo).execute({ id: req.params.id, usuarioId: req.user.id });
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });

@@ -1,6 +1,12 @@
 const router = require('express').Router();
-const { controller, upload } = require('../controllers/SlidesController');
+const multer = require('multer');
+const { controller } = require('../controllers/SlidesController');
 const { autenticarToken } = require('../middleware/auth.middleware');
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 router.get('/slides-login', (req, res) => controller.listar(req, res));
 router.get('/slides-login/admin', autenticarToken, (req, res) => controller.listarAdmin(req, res));

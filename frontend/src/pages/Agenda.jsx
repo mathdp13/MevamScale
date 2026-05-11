@@ -533,7 +533,7 @@ function Agenda() {
                     <span className={`text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 ${
                       ausente ? 'bg-red-500/20 text-red-400' : 'bg-green-500/15 text-green-400'
                     }`}>
-                      {ausente ? 'Nao posso' : 'Disponivel'}
+                      {ausente ? 'Não posso' : 'Disponivel'}
                     </span>
                   </button>
                 );

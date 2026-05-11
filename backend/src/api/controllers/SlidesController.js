@@ -1,14 +1,15 @@
 const pool = require('../../infrastructure/database/pool');
 const cloudinary = require('cloudinary').v2;
-const multer = require('multer');
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+function uploadToCloudinary(buffer) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'slides', resource_type: 'image' },
+      (err, result) => (err ? reject(err) : resolve(result.secure_url))
+    );
+    stream.end(buffer);
+  });
+}
 
 class SlidesController {
   async listar(req, res) {
@@ -52,19 +53,7 @@ class SlidesController {
 
       let imagem_url = null;
       if (req.file) {
-        try {
-          const result = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { folder: 'slides_login', resource_type: 'image' },
-              (err, result) => { if (err) reject(err); else resolve(result); }
-            );
-            stream.end(req.file.buffer);
-          });
-          imagem_url = result.secure_url;
-        } catch (uploadErr) {
-          console.error('[SlidesController.criar] Cloudinary upload falhou:', uploadErr.message);
-          // slide criado sem imagem se Cloudinary nao estiver configurado
-        }
+        imagem_url = await uploadToCloudinary(req.file.buffer);
       }
 
       const { rows } = await pool.query(
@@ -110,4 +99,4 @@ class SlidesController {
   }
 }
 
-module.exports = { controller: new SlidesController(), upload };
+module.exports = { controller: new SlidesController() };
