@@ -222,6 +222,18 @@ const run = async () => {
       );
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS eventos_fixos (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(200) NOT NULL,
+        dia_semana INTEGER CHECK (dia_semana BETWEEN 0 AND 6),
+        horario VARCHAR(10),
+        imagem_url TEXT,
+        ativo BOOLEAN DEFAULT TRUE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     console.log('Migrations concluidas');
   } catch (err) {
     console.error('Erro nas migrations:', err);

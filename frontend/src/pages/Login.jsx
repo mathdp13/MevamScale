@@ -9,6 +9,24 @@ const MESES_CURTO = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out'
 const MESES_LONGO = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const DIAS_NOME = ['Domingo','Segunda','Terca','Quarta','Quinta','Sexta','Sabado'];
 
+const VERSICULO_CACHE_KEY = 'mevam_versiculos';
+const VERSICULO_TTL = 60 * 60 * 1000;
+
+async function buscarVersiculos() {
+  const cached = JSON.parse(localStorage.getItem(VERSICULO_CACHE_KEY) || 'null');
+  if (cached && Date.now() - cached.ts < VERSICULO_TTL) return cached.data;
+  const respostas = await Promise.allSettled([
+    api.get('/versiculo-aleatorio'),
+    api.get('/versiculo-aleatorio'),
+    api.get('/versiculo-aleatorio'),
+  ]);
+  const data = respostas
+    .filter(r => r.status === 'fulfilled' && r.value.data?.texto)
+    .map(r => ({ type: 'versiculo', ...r.value.data }));
+  if (data.length > 0) localStorage.setItem(VERSICULO_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+  return data;
+}
+
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -23,28 +41,34 @@ function Login() {
         const mes = hoje.getMonth() + 1;
         const ano = hoje.getFullYear();
 
-        const [slidesRes, agendaRes] = await Promise.allSettled([
+        const [slidesRes, eventosFixosRes] = await Promise.allSettled([
           api.get('/slides-login'),
-          api.get(`/agenda/geral?mes=${mes}&ano=${ano}`),
+          api.get('/eventos-fixos'),
         ]);
 
         const slidesAdmin = slidesRes.status === 'fulfilled' ? slidesRes.value.data : [];
-        const agendaItems = agendaRes.status === 'fulfilled' ? agendaRes.value.data : [];
+        const eventosFixos = eventosFixosRes.status === 'fulfilled' ? eventosFixosRes.value.data : [];
 
-        const eventos = agendaItems
-          .filter((e) => {
-            const d = new Date(e.data_evento.split('T')[0] + 'T12:00:00');
-            return d >= hoje;
-          })
-          .slice(0, 3)
-          .map((e) => ({ type: 'evento', ...e }));
+        const eventosFixosMapeados = eventosFixos.map((ev) => {
+          const diasAte = ((ev.dia_semana - hoje.getDay()) + 7) % 7 || 7;
+          const proxData = new Date(hoje);
+          proxData.setDate(hoje.getDate() + diasAte);
+          return { type: 'evento_fixo', ...ev, proxima_data: proxData };
+        });
 
         const todos = [
           ...slidesAdmin.map((s) => ({ type: 'slide', ...s })),
-          ...eventos,
+          ...eventosFixosMapeados,
         ];
 
-        if (todos.length > 0) setCarouselItems(todos);
+        if (todos.length > 0) {
+          setCarouselItems(todos);
+        } else {
+          try {
+            const versiculos = await buscarVersiculos();
+            if (versiculos.length > 0) setCarouselItems(versiculos);
+          } catch {}
+        }
       } catch {}
     };
     buscar();
@@ -86,6 +110,15 @@ function Login() {
 
   const item = carouselItems[carouselIdx] || null;
 
+  const patternBg = {
+    background: '#060d1f',
+    backgroundImage: [
+      'radial-gradient(ellipse at 50% 35%, rgba(14, 60, 140, 0.35) 0%, transparent 60%)',
+      'radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px)',
+    ].join(', '),
+    backgroundSize: '100% 100%, 26px 26px',
+  };
+
   return (
     <div className="min-h-screen bg-[#050b18] flex font-sans">
       <Toaster position="top-center" reverseOrder={false} />
@@ -104,14 +137,23 @@ function Login() {
             ) : (
               <div
                 key={item.id || item.nome}
-                className="w-full h-full bg-gradient-to-br from-[#0a1a33] via-[#0d2347] to-[#050b18]"
+                className="w-full h-full"
+                style={patternBg}
               />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
           </div>
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0a1a33] via-[#0d2347] to-[#050b18]" />
+          <div className="absolute inset-0" style={patternBg} />
         )}
+
+        <style>{`
+          @keyframes verseFade {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          .verse-enter { animation: verseFade 0.7s ease forwards; }
+        `}</style>
 
         {/* Conteudo do slide */}
         <div className="relative z-10 flex flex-col h-full p-12">
@@ -119,36 +161,63 @@ function Login() {
             MEVAM <span className="font-light opacity-60">SCALE</span>
           </div>
 
-          <div className="flex-grow" />
-
-          {item && (
-            <div className="mb-8">
-              {item.type === 'evento' ? (
-                <>
-                  <div className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-3">
-                    {(() => {
-                      const d = new Date(item.data_evento.split('T')[0] + 'T12:00:00');
-                      return `${DIAS_NOME[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')} de ${MESES_LONGO[d.getMonth()]}`;
-                    })()}
-                  </div>
-                  <h2 className="text-white text-3xl font-black tracking-tighter leading-tight mb-2">
-                    {item.nome}
-                  </h2>
-                  {item.ministerio_nome && (
-                    <p className="text-gray-400 text-sm font-bold">{item.ministerio_nome}</p>
-                  )}
-                </>
-              ) : (
-                <>
-                  <h2 className="text-white text-3xl font-black tracking-tighter leading-tight mb-2">
-                    {item.titulo}
-                  </h2>
-                  {item.subtitulo && (
-                    <p className="text-gray-400 text-base">{item.subtitulo}</p>
-                  )}
-                </>
-              )}
+          {item?.type === 'versiculo' ? (
+            <div className="flex-grow flex items-center justify-center">
+              <div key={carouselIdx} className="verse-enter text-center px-6 max-w-lg">
+                <div className="w-10 h-px bg-blue-400/40 mx-auto mb-8" />
+                <p className="text-white text-2xl font-black tracking-tight leading-snug italic mb-6">
+                  &ldquo;{item.texto}&rdquo;
+                </p>
+                <p className="text-blue-400 text-sm font-bold tracking-widest uppercase">{item.ref}</p>
+                <div className="w-10 h-px bg-blue-400/40 mx-auto mt-8" />
+              </div>
             </div>
+          ) : (
+            <>
+              <div className="flex-grow" />
+              {item && (
+                <div className="mb-8">
+                  {item.type === 'evento' ? (
+                    <>
+                      <div className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-3">
+                        {(() => {
+                          const d = new Date(item.data_evento.split('T')[0] + 'T12:00:00');
+                          return `${DIAS_NOME[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')} de ${MESES_LONGO[d.getMonth()]}`;
+                        })()}
+                      </div>
+                      <h2 className="text-white text-3xl font-black tracking-tighter leading-tight mb-2">
+                        {item.nome}
+                      </h2>
+                      {item.ministerio_nome && (
+                        <p className="text-gray-400 text-sm font-bold">{item.ministerio_nome}</p>
+                      )}
+                    </>
+                  ) : item.type === 'evento_fixo' ? (
+                    <>
+                      <div className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-3">
+                        {(() => {
+                          const d = item.proxima_data;
+                          return `${DIAS_NOME[d.getDay()]}, ${String(d.getDate()).padStart(2,'0')} de ${MESES_LONGO[d.getMonth()]}`;
+                        })()}
+                        {item.horario && ` — ${item.horario}`}
+                      </div>
+                      <h2 className="text-white text-3xl font-black tracking-tighter leading-tight mb-2">
+                        {item.nome}
+                      </h2>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-white text-3xl font-black tracking-tighter leading-tight mb-2">
+                        {item.titulo}
+                      </h2>
+                      {item.subtitulo && (
+                        <p className="text-gray-400 text-base">{item.subtitulo}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           {/* Dots */}
@@ -263,6 +332,26 @@ function Login() {
                       ))}
                     </div>
                   )}
+                </div>
+              ) : item.type === 'evento_fixo' ? (
+                <div className="relative rounded-2xl overflow-hidden border border-white/10">
+                  {item.imagem_url ? (
+                    <img src={item.imagem_url} alt={item.nome} className="w-full h-36 object-cover opacity-70" />
+                  ) : (
+                    <div className="w-full h-36 bg-gradient-to-br from-[#0a1a33] via-[#0d2347] to-[#050b18]" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-1">
+                      {DIAS_NOME[item.proxima_data.getDay()]}{item.horario ? ` — ${item.horario}` : ''}
+                    </p>
+                    <p className="text-white font-bold text-sm leading-tight">{item.nome}</p>
+                  </div>
+                </div>
+              ) : item.type === 'versiculo' ? (
+                <div className="bg-[#0a1a33]/80 border border-white/10 rounded-2xl px-5 py-4">
+                  <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest mb-2">{item.ref}</p>
+                  <p className="text-white text-xs italic leading-relaxed">&ldquo;{item.texto}&rdquo;</p>
                 </div>
               ) : (
                 <div className="bg-[#0a1a33]/80 border border-white/10 rounded-2xl px-5 py-4">
