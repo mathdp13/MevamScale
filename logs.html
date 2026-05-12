@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>API Logs — MevamScale</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Courier New', monospace; background: #0a0a0f; color: #c9d1d9; min-height: 100vh; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; background: #111827; border-bottom: 1px solid #1f2937;
+      position: sticky; top: 0; z-index: 10;
+    }
+    header h1 { font-size: 15px; color: #60a5fa; letter-spacing: 1px; }
+    .controls { display: flex; align-items: center; gap: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .badge { font-size: 11px; color: #6b7280; }
+    button {
+      font-size: 12px; padding: 5px 12px; border-radius: 5px; cursor: pointer;
+      border: 1px solid #374151; background: #1f2937; color: #9ca3af;
+    }
+    button:hover { background: #374151; color: #fff; }
+    #portaInput { width: 60px; padding: 4px 8px; background: #1f2937; border: 1px solid #374151; color: #fff; border-radius: 5px; font-size: 12px; text-align: center; }
+
+    #lista { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+    .log-card {
+      border-radius: 8px; overflow: hidden;
+      border: 1px solid #1f2937; background: #111827;
+    }
+    .log-header {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      cursor: pointer; user-select: none;
+    }
+    .log-header:hover { background: #1a2235; }
+
+    .method { font-size: 11px; font-weight: bold; padding: 2px 7px; border-radius: 4px; min-width: 44px; text-align: center; }
+    .GET    { background: #064e3b; color: #34d399; }
+    .POST   { background: #1e3a5f; color: #60a5fa; }
+    .PUT    { background: #3b2a07; color: #fbbf24; }
+    .PATCH  { background: #3b2a07; color: #fbbf24; }
+    .DELETE { background: #3b1111; color: #f87171; }
+
+    .path { flex: 1; font-size: 13px; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .status { font-size: 12px; font-weight: bold; min-width: 36px; text-align: right; }
+    .s2 { color: #34d399; }
+    .s3 { color: #60a5fa; }
+    .s4 { color: #fbbf24; }
+    .s5 { color: #f87171; }
+
+    .time { font-size: 11px; color: #6b7280; min-width: 54px; text-align: right; }
+    .ts   { font-size: 10px; color: #4b5563; min-width: 80px; text-align: right; }
+
+    .log-body { display: none; padding: 0 14px 12px; border-top: 1px solid #1f2937; }
+    .log-body.open { display: block; }
+    .section-label { font-size: 10px; color: #6b7280; margin: 10px 0 4px; text-transform: uppercase; letter-spacing: 1px; }
+    pre {
+      background: #0d1117; border: 1px solid #1f2937; border-radius: 6px;
+      padding: 10px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+      color: #a5f3fc; max-height: 300px; overflow-y: auto;
+    }
+    pre.res { color: #bbf7d0; }
+    pre.err { color: #fca5a5; }
+
+    #vazio { text-align: center; color: #4b5563; padding: 60px 20px; font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>MevamScale — API Logs</h1>
+  <div class="controls">
+    <span class="dot" id="dot"></span>
+    <span class="badge" id="totalBadge">0 logs</span>
+    <input id="portaInput" value="3001" title="Porta do backend" />
+    <button onclick="limpar()">Limpar</button>
+    <button onclick="togglePause()" id="btnPause">Pausar</button>
+  </div>
+</header>
+
+<div id="lista"><div id="vazio">Aguardando requisicoes...</div></div>
+
+<script>
+  let paused = false;
+  let logsExibidos = new Set();
+  let todosLogs = [];
+
+  function porta() {
+    return document.getElementById('portaInput').value.trim() || '3001';
+  }
+
+  function togglePause() {
+    paused = !paused;
+    document.getElementById('btnPause').textContent = paused ? 'Retomar' : 'Pausar';
+    document.getElementById('dot').style.background = paused ? '#ef4444' : '#22c55e';
+  }
+
+  function limpar() {
+    logsExibidos.clear();
+    todosLogs = [];
+    document.getElementById('lista').innerHTML = '<div id="vazio">Aguardando requisicoes...</div>';
+    document.getElementById('totalBadge').textContent = '0 logs';
+    fetch(`http://localhost:${porta()}/api/logs-clear`, { method: 'DELETE' }).catch(() => {});
+  }
+
+  function statusClass(s) {
+    if (!s) return '';
+    if (s < 300) return 's2';
+    if (s < 400) return 's3';
+    if (s < 500) return 's4';
+    return 's5';
+  }
+
+  function formatTime(iso) {
+    const d = new Date(iso);
+    return d.toTimeString().slice(0, 8);
+  }
+
+  function renderLog(log) {
+    const card = document.createElement('div');
+    card.className = 'log-card';
+    card.id = 'log-' + log.id;
+
+    const sc = statusClass(log.status);
+    const mt = formatTime(log.timestamp);
+    const rt = log.responseTime != null ? log.responseTime + 'ms' : '...';
+
+    const reqBody = log.requestBody ? JSON.stringify(log.requestBody, null, 2) : null;
+    const resBody = log.responseBody != null ? JSON.stringify(log.responseBody, null, 2) : null;
+    const resClass = log.status >= 400 ? 'err' : 'res';
+
+    card.innerHTML = `
+      <div class="log-header" onclick="toggle(this)">
+        <span class="method ${log.method}">${log.method}</span>
+        <span class="path" title="${log.path}">${log.path}</span>
+        <span class="status ${sc}">${log.status || '—'}</span>
+        <span class="time">${rt}</span>
+        <span class="ts">${mt}</span>
+      </div>
+      <div class="log-body">
+        ${reqBody ? `<div class="section-label">Request Body</div><pre>${escHtml(reqBody)}</pre>` : ''}
+        ${resBody ? `<div class="section-label">Response</div><pre class="${resClass}">${escHtml(resBody)}</pre>` : '<div class="section-label" style="color:#374151">Sem corpo de resposta</div>'}
+      </div>
+    `;
+    return card;
+  }
+
+  function toggle(header) {
+    const body = header.nextElementSibling;
+    body.classList.toggle('open');
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  async function fetchLogs() {
+    if (paused) return;
+    try {
+      const res = await fetch(`http://localhost:${porta()}/api/logs`);
+      const logs = await res.json();
+      if (!Array.isArray(logs)) return;
+
+      const lista = document.getElementById('lista');
+      const vazio = document.getElementById('vazio');
+
+      let novos = 0;
+      logs.forEach(log => {
+        if (logsExibidos.has(log.id)) return;
+        logsExibidos.add(log.id);
+        novos++;
+        const card = renderLog(log);
+        if (vazio && vazio.parentNode) vazio.remove();
+        lista.insertBefore(card, lista.firstChild);
+      });
+
+      // remove cards de logs que o servidor já descartou
+      logsExibidos.forEach(id => {
+        if (!logs.find(l => l.id === id)) {
+          const el = document.getElementById('log-' + id);
+          if (el) el.remove();
+          logsExibidos.delete(id);
+        }
+      });
+
+      document.getElementById('totalBadge').textContent = logs.length + ' logs';
+    } catch {
+      // backend offline — não faz nada
+    }
+  }
+
+  setInterval(fetchLogs, 2000);
+  fetchLogs();
+</script>
+</body>
+</html>

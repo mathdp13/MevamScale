@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Teste - Busca de Cifra</title>
+  <style>
+    body { font-family: monospace; background: #0f0f0f; color: #e0e0e0; max-width: 700px; margin: 40px auto; padding: 20px; }
+    h1 { color: #60a5fa; font-size: 18px; }
+    label { display: block; margin-top: 12px; font-size: 13px; color: #9ca3af; }
+    input { width: 100%; padding: 8px; margin-top: 4px; background: #1f1f1f; border: 1px solid #333; color: #fff; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+    button { margin-top: 16px; padding: 10px 24px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #resultado { margin-top: 24px; padding: 16px; background: #1a1a2e; border: 1px solid #2d2d5a; border-radius: 8px; white-space: pre-wrap; font-size: 13px; display: none; }
+    #resultado.ok { border-color: #16a34a; }
+    #resultado.erro { border-color: #dc2626; }
+    #resultado.vazio { border-color: #d97706; }
+    .url-link { color: #60a5fa; text-decoration: none; }
+    .url-link:hover { text-decoration: underline; }
+    #porta { width: 80px; }
+  </style>
+</head>
+<body>
+  <h1>Teste: Busca de Cifra via Gemini</h1>
+
+  <label>Porta do backend</label>
+  <input id="porta" value="3001" />
+
+  <label>Nome da música *</label>
+  <input id="nome" placeholder="Ex: Tu és tudo" />
+
+  <label>Artista</label>
+  <input id="artista" placeholder="Ex: Alessandro Vilas Boas" />
+
+  <button id="btn" onclick="buscar()">Buscar</button>
+
+  <div id="resultado"></div>
+
+  <script>
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') buscar();
+    });
+
+    async function buscar() {
+      const nome = document.getElementById('nome').value.trim();
+      const artista = document.getElementById('artista').value.trim();
+      const porta = document.getElementById('porta').value.trim() || '3001';
+      const btn = document.getElementById('btn');
+      const resultado = document.getElementById('resultado');
+
+      if (!nome) { alert('Digite o nome da música.'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Buscando...';
+      resultado.style.display = 'none';
+      resultado.className = '';
+
+      const params = new URLSearchParams({ nome });
+      if (artista) params.append('artista', artista);
+
+      const url = `http://localhost:${porta}/api/buscar-cifra?${params}`;
+
+      try {
+        const res = await fetch(url);
+        const rawText = await res.text();
+
+        let html = `URL chamada: ${url}\nSTATUS: ${res.status}\n\nRESPOSTA BRUTA:\n${rawText}`;
+
+        try {
+          const data = JSON.parse(rawText);
+          html += `\n\nRESPOSTA JSON:\n${JSON.stringify(data, null, 2)}`;
+
+          if (data.url) {
+            html += `\n\n✅ URL encontrada:\n<a class="url-link" href="${data.url}" target="_blank">${data.url}</a>`;
+            resultado.className = 'ok';
+          } else if (data.fonte === 'nao_encontrada') {
+            html += '\n\n⚠️ Cifra não encontrada — veja o terminal do backend';
+            resultado.className = 'vazio';
+          } else {
+            html += '\n\n❌ Retornou sem URL';
+            resultado.className = 'erro';
+          }
+        } catch {
+          html += '\n\n❌ Resposta não é JSON (backend retornou HTML — rota não encontrada ou erro 500)';
+          resultado.className = 'erro';
+        }
+
+        resultado.innerHTML = html;
+      } catch (err) {
+        resultado.innerHTML = `❌ Falha na conexão: ${err.message}\n\nURL tentada: ${url}\n\nVerifique se o backend está rodando na porta ${porta}.`;
+        resultado.className = 'erro';
+      }
+
+      resultado.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Buscar';
+    }
+  </script>
+</body>
+</html>

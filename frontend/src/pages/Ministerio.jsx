@@ -6,6 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { ArrowLeft, Plus, Trash2, Trash, Pencil, Check, X, Share2, BarChart2 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import EscalasTab from '../components/EscalasTab';
+import RepertorioTab from '../components/RepertorioTab';
 
 function lerCache(id) {
   try { return JSON.parse(localStorage.getItem(`ministerio_${id}`) || 'null'); } catch { return null; }
@@ -339,7 +340,7 @@ function Ministerio() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-8 bg-[#0a1a33] p-1 rounded-2xl w-fit">
-          {['membros', 'escalas', ...(isAdmin ? ['funcoes', 'stats'] : [])].map((tab) => (
+          {['membros', 'escalas', 'repertorio', ...(isAdmin ? ['funcoes', 'stats'] : [])].map((tab) => (
             <button
               key={tab}
               onClick={() => setTabAtiva(tab)}
@@ -347,13 +348,17 @@ function Ministerio() {
                 tabAtiva === tab ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-white'
               }`}
             >
-              {tab === 'stats' ? <BarChart2 size={14} /> : { membros: 'Membros', escalas: 'Escalas', funcoes: 'Funções' }[tab] ?? tab}
+              {tab === 'stats' ? <BarChart2 size={14} /> : { membros: 'Membros', escalas: 'Escalas', repertorio: 'Repertório', funcoes: 'Funções' }[tab] ?? tab}
             </button>
           ))}
         </div>
 
         {tabAtiva === 'escalas' && (
           <EscalasTab ministerioId={id} isAdmin={isAdmin} membros={membros} funcoes={funcoes} />
+        )}
+
+        {tabAtiva === 'repertorio' && (
+          <RepertorioTab ministerioId={id} isAdmin={isAdmin} />
         )}
 
         {tabAtiva === 'membros' && (

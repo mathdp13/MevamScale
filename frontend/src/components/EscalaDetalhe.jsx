@@ -1,15 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { X, Plus, Check, Trash2, AlertCircle, Send, Music } from 'lucide-react';
+import { X, Plus, Check, Trash2, AlertCircle, Send, Music, Pencil } from 'lucide-react';
 
 const TONS = ['A','Am','Bb','Bbm','B','Bm','C','Cm','C#','C#m','D','Dm','Eb','Ebm','E','Em','F','Fm','F#','F#m','G','Gm','Ab','Abm'];
-
-function toSlug(str) {
-  return str.toLowerCase()
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-');
-}
 
 function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFechar, onAtualizar }) {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -32,6 +26,11 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
   const [buscandoCifra, setBuscandoCifra] = useState(false);
   const [tomSelecionado, setTomSelecionado] = useState('');
   const [musicaPendente, setMusicaPendente] = useState(null);
+  const [buscaMusica, setBuscaMusica] = useState('');
+  const [editandoItem, setEditandoItem] = useState(null);
+  const [editForm, setEditForm] = useState({ nome: '', artista: '', link_cifra: '' });
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [buscandoCifraPorId, setBuscandoCifraPorId] = useState(new Set());
 
   // --- Chat ---
   const [mensagens, setMensagens] = useState([]);
@@ -80,15 +79,11 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
 
   useEffect(() => {
     if (tab === 'setlist') carregarSetlist();
-    if (tab === 'chat') {
-      carregarMensagens();
-    }
+    if (tab === 'chat') carregarMensagens();
   }, [tab]);
 
   useEffect(() => {
-    if (tab === 'chat') {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
+    if (tab === 'chat') chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensagens, tab]);
 
   // ---- Membros ----
@@ -155,6 +150,7 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
       carregarSetlist();
       setMusicaPendente(null);
       setTomSelecionado('');
+      setBuscaMusica('');
       setShowAddMusica(false);
     } catch {
       toast.error('Erro ao adicionar musica.');
@@ -172,7 +168,78 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
         setNovaMusica((p) => ({ ...p, link_cifra: res.data.url }));
         toast.success('Cifra encontrada!');
       } else {
-        toast('Cifra não disponivel no Cifra Club para esta musica. Adicione um link manualmente se souber.', { duration: 4000 });
+        toast('Cifra não encontrada, adicione manualmente o link', { duration: 4000 });
+      }
+    } catch {
+      toast.error('Erro ao buscar cifra.');
+    } finally {
+      setBuscandoCifra(false);
+    }
+  };
+
+  const buscarCifraPorItem = async (item) => {
+    setBuscandoCifraPorId((prev) => new Set([...prev, item.musica_id]));
+    try {
+      const params = new URLSearchParams({ nome: item.nome });
+      if (item.artista) params.append('artista', item.artista);
+      const res = await api.get(`/buscar-cifra?${params}`);
+      if (res.data.url) {
+        await api.put(`/ministerios/${ministerioId}/musicas/${item.musica_id}`, {
+          nome: item.nome,
+          artista: item.artista || null,
+          link_cifra: res.data.url,
+        });
+        setSetlist((prev) => prev.map((s) => s.musica_id === item.musica_id ? { ...s, link_cifra: res.data.url } : s));
+        setMusicasMin((prev) => prev.map((m) => m.id === item.musica_id ? { ...m, link_cifra: res.data.url } : m));
+        toast.success('Cifra encontrada!');
+      } else {
+        toast('Cifra não encontrada. Adicione manualmente pelo lápis.', { duration: 4000 });
+      }
+    } catch {
+      toast.error('Erro ao buscar cifra.');
+    } finally {
+      setBuscandoCifraPorId((prev) => { const s = new Set(prev); s.delete(item.musica_id); return s; });
+    }
+  };
+
+  const abrirEdicao = (item) => {
+    setEditandoItem(item);
+    setEditForm({ nome: item.nome || '', artista: item.artista || '', link_cifra: item.link_cifra || '' });
+  };
+
+  const salvarEdicaoMusica = async () => {
+    if (!editandoItem || !editForm.nome.trim()) return toast.error('Nome obrigatorio.');
+    setSalvandoEdicao(true);
+    try {
+      await api.put(`/ministerios/${ministerioId}/musicas/${editandoItem.musica_id}`, {
+        nome: editForm.nome.trim(),
+        artista: editForm.artista.trim() || null,
+        link_cifra: editForm.link_cifra.trim() || null,
+      });
+      const atualizado = { nome: editForm.nome.trim(), artista: editForm.artista.trim() || null, link_cifra: editForm.link_cifra.trim() || null };
+      setSetlist((prev) => prev.map((s) => s.musica_id === editandoItem.musica_id ? { ...s, ...atualizado } : s));
+      setMusicasMin((prev) => prev.map((m) => m.id === editandoItem.musica_id ? { ...m, ...atualizado } : m));
+      setEditandoItem(null);
+      toast.success('Musica atualizada!');
+    } catch {
+      toast.error('Erro ao atualizar musica.');
+    } finally {
+      setSalvandoEdicao(false);
+    }
+  };
+
+  const buscarCifraNoEdit = async () => {
+    if (!editForm.nome.trim()) return;
+    setBuscandoCifra(true);
+    try {
+      const params = new URLSearchParams({ nome: editForm.nome.trim() });
+      if (editForm.artista.trim()) params.append('artista', editForm.artista.trim());
+      const res = await api.get(`/buscar-cifra?${params}`);
+      if (res.data.url) {
+        setEditForm((p) => ({ ...p, link_cifra: res.data.url }));
+        toast.success('Cifra encontrada!');
+      } else {
+        toast('Cifra não encontrada, adicione o link manualmente.', { duration: 3000 });
       }
     } catch {
       toast.error('Erro ao buscar cifra.');
@@ -184,12 +251,11 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
   const salvarNovaMusica = async () => {
     if (!novaMusica.nome.trim()) return toast.error('Nome obrigatorio.');
     setCriandoMusica(true);
-    const linkFinal = novaMusica.link_cifra.trim() || null;
     try {
       const res = await api.post(`/ministerios/${ministerioId}/musicas`, {
         nome: novaMusica.nome.trim(),
         artista: novaMusica.artista.trim() || null,
-        link_cifra: linkFinal,
+        link_cifra: novaMusica.link_cifra.trim() || null,
       });
       await api.post(`/escalas/${escala.id}/setlist`, { musica_id: res.data.id, tom: tomSelecionado || null });
       setNovaMusica({ nome: '', artista: '', link_cifra: '' });
@@ -246,6 +312,12 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
   const ausenciasNaData = ausencias.filter((a) => a.data?.split('T')[0] === dataEscala).map((a) => a.usuario_id);
   const euEstouNaEscala = membrosEscala.find((m) => m.usuario_id === user.id);
   const musicasNaoNoSetlist = musicasMin.filter((m) => !setlist.find((s) => s.musica_id === m.id));
+  const musicasFiltradas = buscaMusica.trim()
+    ? musicasNaoNoSetlist.filter((m) =>
+        m.nome.toLowerCase().includes(buscaMusica.toLowerCase()) ||
+        (m.artista && m.artista.toLowerCase().includes(buscaMusica.toLowerCase()))
+      )
+    : musicasNaoNoSetlist;
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end lg:items-center justify-center z-50 p-4">
@@ -427,32 +499,104 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
               {setlist.length === 0 && !showAddMusica && (
                 <p className="text-gray-600 italic text-sm py-2">Nenhuma musica no setlist ainda.</p>
               )}
+
               {setlist.map((item) => (
-                <div key={item.id} className="flex items-center gap-3 bg-white/5 px-4 py-3 rounded-2xl">
-                  <div className="flex-grow min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{item.nome}</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">
-                      {item.artista || 'Artista desconhecido'}
-                      {item.tom && <span className="ml-2 text-blue-400 font-bold">Tom: {item.tom}</span>}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {item.link_cifra ? (
-                      <a
-                        href={item.link_cifra.replace(/\/letra\/?$/, '/')}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1 text-[10px] font-bold text-blue-400 hover:text-blue-300 transition-colors border border-blue-500/30 px-2 py-1 rounded-lg"
-                      >
-                        <img src="https://www.cifraclub.com.br/favicon.ico" alt="CC" className="w-3 h-3 rounded-sm" onError={(e) => { e.target.style.display='none'; }} />
-                        Cifra
-                      </a>
-                    ) : null}
-                    <button onClick={() => removerDoSetlist(item.id)} className="text-gray-700 hover:text-red-400 transition-colors">
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
+                <div key={item.id}>
+                  {editandoItem?.musica_id === item.musica_id ? (
+                    /* Form de edição inline */
+                    <div className="bg-[#050b18] rounded-2xl border border-blue-500/20 p-4 space-y-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] text-blue-400 uppercase font-bold tracking-widest">Editar música</span>
+                        <button onClick={() => setEditandoItem(null)} className="text-gray-600 hover:text-white transition-colors">
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <input
+                        className="w-full bg-transparent border-b border-gray-700 py-1.5 outline-none focus:border-blue-500 transition-colors text-white text-sm placeholder-gray-600"
+                        placeholder="Nome da música *"
+                        value={editForm.nome}
+                        onChange={(e) => setEditForm((p) => ({ ...p, nome: e.target.value }))}
+                      />
+                      <input
+                        className="w-full bg-transparent border-b border-gray-700 py-1.5 outline-none focus:border-blue-500 transition-colors text-white text-sm placeholder-gray-600"
+                        placeholder="Artista"
+                        value={editForm.artista}
+                        onChange={(e) => setEditForm((p) => ({ ...p, artista: e.target.value }))}
+                      />
+                      <div className="flex gap-2 items-center">
+                        <input
+                          className="flex-grow bg-transparent border-b border-gray-700 py-1.5 outline-none focus:border-blue-500 transition-colors text-white text-sm placeholder-gray-600"
+                          placeholder="Link da cifra"
+                          value={editForm.link_cifra}
+                          onChange={(e) => setEditForm((p) => ({ ...p, link_cifra: e.target.value }))}
+                        />
+                        <button
+                          onClick={buscarCifraNoEdit}
+                          disabled={buscandoCifra}
+                          className="border border-blue-500/30 p-1 rounded-lg flex-shrink-0 hover:border-blue-400 transition-colors disabled:opacity-30"
+                        >
+                          {buscandoCifra
+                            ? <span className="w-3 h-3 rounded-sm bg-gray-600 animate-pulse inline-block" />
+                            : <img src="https://www.cifraclub.com.br/favicon.ico" alt="Cifra Club" className="w-3 h-3 rounded-sm block" onError={(e) => { e.target.style.display = 'none'; }} />
+                          }
+                        </button>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={salvarEdicaoMusica}
+                          disabled={salvandoEdicao}
+                          className="flex-grow bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-xl font-bold text-xs transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {salvandoEdicao ? 'Salvando...' : 'Salvar'}
+                        </button>
+                        <button onClick={() => setEditandoItem(null)} className="text-gray-500 hover:text-white text-xs px-3">
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Card normal */
+                    <div className="flex items-center gap-3 bg-white/5 px-4 py-3 rounded-2xl">
+                      <div className="flex-grow min-w-0">
+                        <p className="text-sm font-bold text-white truncate">{item.nome}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          {item.artista || 'Artista desconhecido'}
+                          {item.tom && <span className="ml-2 text-blue-400 font-bold">Tom: {item.tom}</span>}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {item.link_cifra ? (
+                          <a
+                            href={item.link_cifra.replace(/\/letra\/?$/, '/')}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="border border-blue-500/30 p-1 rounded-lg transition-colors hover:border-blue-400"
+                          >
+                            <img src="https://www.cifraclub.com.br/favicon.ico" alt="Cifra Club" className="w-3 h-3 rounded-sm block" onError={(e) => { e.target.style.display='none'; }} />
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => buscarCifraPorItem(item)}
+                            disabled={buscandoCifraPorId.has(item.musica_id)}
+                            title="Buscar cifra"
+                            className="flex items-center gap-1 text-[10px] font-bold text-gray-500 hover:text-blue-400 border border-gray-700 hover:border-blue-500/30 px-2 py-1 rounded-lg transition-colors disabled:opacity-30"
+                          >
+                            {buscandoCifraPorId.has(item.musica_id)
+                              ? <span className="w-3 h-3 rounded-sm bg-gray-600 animate-pulse inline-block" />
+                              : <img src="https://www.cifraclub.com.br/favicon.ico" alt="CC" className="w-3 h-3 rounded-sm opacity-40" onError={(e) => { e.target.style.display = 'none'; }} />
+                            }
+                          </button>
+                        )}
+                        <button onClick={() => abrirEdicao(item)} className="text-gray-600 hover:text-blue-400 transition-colors">
+                          <Pencil size={12} />
+                        </button>
+                        <button onClick={() => removerDoSetlist(item.id)} className="text-gray-700 hover:text-red-400 transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -461,12 +605,12 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
                 <div className="bg-[#050b18] rounded-2xl border border-white/10 p-4 mt-2">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Adicionar ao setlist</span>
-                    <button onClick={() => { setShowAddMusica(false); setShowFormNova(false); }} className="text-gray-600 hover:text-white transition-colors">
+                    <button onClick={() => { setShowAddMusica(false); setShowFormNova(false); setBuscaMusica(''); setMusicaPendente(null); }} className="text-gray-600 hover:text-white transition-colors">
                       <X size={14} />
                     </button>
                   </div>
 
-                  {/* Seleção de tom para música da biblioteca */}
+                  {/* Seleção de tom para música pendente */}
                   {musicaPendente && (
                     <div className="mb-3 bg-blue-600/10 border border-blue-500/20 rounded-xl p-3">
                       <p className="text-xs font-bold text-white mb-2 truncate">{musicaPendente.nome}</p>
@@ -490,37 +634,42 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
                     </div>
                   )}
 
-                  {/* Lista de músicas do ministério não adicionadas */}
-                  {!musicaPendente && musicasNaoNoSetlist.length > 0 && (
-                    <div className="space-y-1.5 max-h-40 overflow-y-auto mb-3">
-                      {musicasNaoNoSetlist.map((m) => (
-                        <div key={m.id} className="flex items-center gap-1 group">
-                          <button
-                            onClick={() => selecionarMusicaDaLib(m)}
-                            className="flex-grow flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5 hover:bg-blue-600/15 transition-colors text-left"
-                          >
-                            <Music size={12} className="text-blue-400 flex-shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-sm text-white font-bold truncate">{m.nome}</p>
-                              {m.artista && <p className="text-[10px] text-gray-500 truncate">{m.artista}</p>}
-                            </div>
-                          </button>
-                          <button
-                            onClick={async () => {
-                              try {
-                                await api.delete(`/ministerios/${ministerioId}/musicas/${m.id}`);
-                                setMusicasMin((prev) => prev.filter((x) => x.id !== m.id));
-                              } catch {
-                                toast.error('Erro ao remover musica.');
-                              }
-                            }}
-                            className="text-gray-700 hover:text-red-400 transition-colors p-1.5 flex-shrink-0 opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                  {/* Busca inteligente no repertório */}
+                  {!musicaPendente && (
+                    <>
+                      {musicasNaoNoSetlist.length > 0 && (
+                        <input
+                          type="text"
+                          placeholder="Buscar no repertório..."
+                          value={buscaMusica}
+                          onChange={(e) => setBuscaMusica(e.target.value)}
+                          className="w-full bg-[#0a1a33] border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500 transition-colors placeholder-gray-600 mb-2"
+                          autoFocus
+                        />
+                      )}
+
+                      {musicasFiltradas.length > 0 && (
+                        <div className="space-y-1.5 max-h-40 overflow-y-auto mb-3">
+                          {musicasFiltradas.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => selecionarMusicaDaLib(m)}
+                              className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-white/5 hover:bg-blue-600/15 transition-colors text-left"
+                            >
+                              <Music size={12} className="text-blue-400 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-sm text-white font-bold truncate">{m.nome}</p>
+                                {m.artista && <p className="text-[10px] text-gray-500 truncate">{m.artista}</p>}
+                              </div>
+                            </button>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      )}
+
+                      {buscaMusica && musicasFiltradas.length === 0 && (
+                        <p className="text-xs text-gray-600 py-1 mb-2">Nenhuma música encontrada. Crie uma nova abaixo.</p>
+                      )}
+                    </>
                   )}
 
                   {!showFormNova ? (
@@ -549,7 +698,7 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
                           }}
                         />
                         {buscandoCifra && (
-                          <span className="text-[10px] text-blue-400 animate-pulse flex-shrink-0 mb-0.5">Buscando cifra...</span>
+                          <span className="text-[10px] text-blue-400 animate-pulse flex-shrink-0 mb-0.5">Buscando...</span>
                         )}
                       </div>
                       {novaMusica.link_cifra && (
@@ -558,12 +707,7 @@ function EscalaDetalhe({ escala, isAdmin, membros, funcoes, ministerioId, onFech
                           <span className="text-[10px] text-blue-400 truncate flex-grow">
                             {novaMusica.link_cifra.replace('https://www.', '')}
                           </span>
-                          <a
-                            href={novaMusica.link_cifra}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[10px] text-blue-400 font-bold hover:text-blue-300 flex-shrink-0"
-                          >
+                          <a href={novaMusica.link_cifra} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 font-bold hover:text-blue-300 flex-shrink-0">
                             Testar
                           </a>
                         </div>
