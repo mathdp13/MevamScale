@@ -21,6 +21,7 @@ router.delete('/ministerios/:id', (req, res) => ministeriosController.deletar(re
 
 router.get('/ministerios/:id/musicas', (req, res) => ministeriosController.listarMusicas(req, res));
 router.post('/ministerios/:id/musicas', (req, res) => ministeriosController.criarMusica(req, res));
+router.put('/ministerios/:id/musicas/:musicaId', (req, res) => ministeriosController.atualizarMusica(req, res));
 router.delete('/ministerios/:id/musicas/:musicaId', (req, res) => ministeriosController.deletarMusica(req, res));
 
 module.exports = router;

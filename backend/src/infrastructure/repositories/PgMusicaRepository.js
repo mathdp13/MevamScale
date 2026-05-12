@@ -17,6 +17,15 @@ class PgMusicaRepository {
     return rows[0];
   }
 
+  async atualizarMusica({ id, ministerioId, nome, artista, linkCifra }) {
+    const { rows } = await pool.query(
+      `UPDATE musicas SET nome=$1, artista=$2, link_cifra=$3
+       WHERE id=$4 AND ministerio_id=$5 RETURNING *`,
+      [nome, artista || null, linkCifra || null, id, ministerioId]
+    );
+    return rows[0] || null;
+  }
+
   async deletarMusica(id) {
     await pool.query('DELETE FROM musicas WHERE id = $1', [id]);
   }

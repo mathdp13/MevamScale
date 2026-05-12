@@ -218,6 +218,23 @@ class MinisteriosController {
     }
   }
 
+  async atualizarMusica(req, res) {
+    try {
+      const { nome, artista, link_cifra } = req.body;
+      const result = await musicaRepo.atualizarMusica({
+        id: req.params.musicaId,
+        ministerioId: req.params.id,
+        nome,
+        artista,
+        linkCifra: link_cifra,
+      });
+      if (!result) return res.status(404).json({ error: 'Musica nao encontrada' });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
   async deletarMusica(req, res) {
     try {
       await musicaRepo.deletarMusica(req.params.musicaId);
