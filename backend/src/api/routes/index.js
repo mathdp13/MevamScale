@@ -7,5 +7,6 @@ router.use(require('./escalas.routes'));
 router.use(require('./slides.routes'));
 router.use(require('./eventos-fixos.routes'));
 router.use(require('./biblia.routes'));
+router.use(require('./cifra.routes'));
 
 module.exports = router;

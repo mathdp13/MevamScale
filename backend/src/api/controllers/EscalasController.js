@@ -217,7 +217,8 @@ class EscalasController {
 
   async deletarAusencia(req, res) {
     try {
-      await new DeletarAusenciaUseCase(repo).execute({ id: req.params.id, usuarioId: req.user.id });
+      const usuarioId = req.user?.id || req.query.usuario_id || req.body?.usuario_id;
+      await new DeletarAusenciaUseCase(repo).execute({ id: req.params.id, usuarioId });
       res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -248,6 +249,74 @@ class EscalasController {
     try {
       const result = await new AtualizarSubstituicaoUseCase(repo).execute({ id: req.params.id, status: req.body.status });
       res.json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  async listarSetlist(req, res) {
+    try {
+      const result = await repo.listarSetlist(req.params.escalaId);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async adicionarSetlist(req, res) {
+    try {
+      const { musica_id, tom } = req.body;
+      const result = await repo.adicionarSetlist({ escalaId: req.params.escalaId, musicaId: musica_id, tom });
+      res.status(201).json(result || { ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async removerSetlist(req, res) {
+    try {
+      await repo.removerSetlist(req.params.itemId);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async listarMensagens(req, res) {
+    try {
+      const result = await repo.listarMensagens(req.params.escalaId);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async criarMensagem(req, res) {
+    try {
+      const { usuario_id, texto } = req.body;
+      if (!texto?.trim()) return res.status(400).json({ error: 'Texto obrigatorio.' });
+      const result = await repo.criarMensagem({ escalaId: req.params.escalaId, usuarioId: usuario_id, texto: texto.trim() });
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async aprovarSubstituicao(req, res) {
+    try {
+      const { substituto_id } = req.body;
+      if (!substituto_id) throw { status: 400, message: 'substituto_id obrigatorio.' };
+
+      const pedido = await repo.buscarSubstituicaoComDetalhes(req.params.id);
+      if (!pedido) throw { status: 404, message: 'Pedido nao encontrado.' };
+
+      // remover solicitante da escala
+      await repo.removerMembro({ escalaId: pedido.escala_id, usuarioId: pedido.solicitante_id });
+      // adicionar substituto com a mesma funcao
+      await repo.adicionarMembro({ escalaId: pedido.escala_id, usuarioId: substituto_id, funcaoId: pedido.funcao_solicitante });
+      // marcar pedido como aprovado
+      const resultado = await repo.atualizarSubstituicao({ id: req.params.id, status: 'aprovado' });
+      res.json(resultado);
     } catch (err) {
       res.status(err.status || 500).json({ error: err.message });
     }

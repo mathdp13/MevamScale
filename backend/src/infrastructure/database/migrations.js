@@ -197,6 +197,8 @@ const run = async () => {
     `);
 
     await pool.query(`ALTER TABLE ministerios ADD COLUMN IF NOT EXISTS dia_limite_ausencias INTEGER`);
+    await pool.query(`ALTER TABLE ministerios ADD COLUMN IF NOT EXISTS auto_gerar_mes BOOLEAN DEFAULT FALSE`);
+    await pool.query(`ALTER TABLE ministerios ADD COLUMN IF NOT EXISTS escalar_indisponiveis BOOLEAN DEFAULT FALSE`);
 
     await pool.query(`ALTER TABLE slides_login ADD COLUMN IF NOT EXISTS data_inicio DATE`);
     await pool.query(`ALTER TABLE slides_login ADD COLUMN IF NOT EXISTS data_fim DATE`);
@@ -231,6 +233,38 @@ const run = async () => {
         imagem_url TEXT,
         ativo BOOLEAN DEFAULT TRUE,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS musicas (
+        id SERIAL PRIMARY KEY,
+        ministerio_id INT REFERENCES ministerios(id) ON DELETE CASCADE,
+        nome VARCHAR(200) NOT NULL,
+        artista VARCHAR(200),
+        link_cifra TEXT,
+        criado_em TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escala_setlist (
+        id SERIAL PRIMARY KEY,
+        escala_id INT REFERENCES escalas(id) ON DELETE CASCADE,
+        musica_id INT REFERENCES musicas(id) ON DELETE CASCADE,
+        ordem INT DEFAULT 0,
+        tom VARCHAR(10),
+        UNIQUE(escala_id, musica_id)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escala_mensagens (
+        id SERIAL PRIMARY KEY,
+        escala_id INT REFERENCES escalas(id) ON DELETE CASCADE,
+        usuario_id INT REFERENCES usuarios(id) ON DELETE SET NULL,
+        texto TEXT NOT NULL,
+        criado_em TIMESTAMP DEFAULT NOW()
       );
     `);
 

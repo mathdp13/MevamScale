@@ -10,8 +10,10 @@ const DeletarMinisterioUseCase = require('../../application/usecases/ministerios
 const AtualizarFuncaoUseCase = require('../../application/usecases/ministerios/AtualizarFuncaoUseCase');
 const AtualizarMinisterioUseCase = require('../../application/usecases/ministerios/AtualizarMinisterioUseCase');
 const PgMinisterioRepository = require('../../infrastructure/repositories/PgMinisterioRepository');
+const PgMusicaRepository = require('../../infrastructure/repositories/PgMusicaRepository');
 
 const ministerioRepo = new PgMinisterioRepository();
+const musicaRepo = new PgMusicaRepository();
 
 class MinisteriosController {
   async criar(req, res) {
@@ -143,6 +145,28 @@ class MinisteriosController {
     }
   }
 
+  async listarTodos(req, res) {
+    try {
+      const result = await ministerioRepo.listarTodos();
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async atualizarConfig(req, res) {
+    try {
+      const { auto_gerar_mes, escalar_indisponiveis } = req.body;
+      const result = await ministerioRepo.atualizarConfig(req.params.id, {
+        auto_gerar_mes,
+        escalar_indisponiveis,
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
   async getEscalaConfig(req, res) {
     try {
       const result = await ministerioRepo.getEscalaConfig({
@@ -165,6 +189,39 @@ class MinisteriosController {
         dataLimiteAusencias: req.body.data_limite_ausencias || null,
       });
       res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async listarMusicas(req, res) {
+    try {
+      const result = await musicaRepo.listarMusicas(req.params.id);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+
+  async criarMusica(req, res) {
+    try {
+      const { nome, artista, link_cifra } = req.body;
+      const result = await musicaRepo.criarMusica({
+        ministerioId: req.params.id,
+        nome,
+        artista,
+        linkCifra: link_cifra,
+      });
+      res.status(201).json(result);
+    } catch (err) {
+      res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  async deletarMusica(req, res) {
+    try {
+      await musicaRepo.deletarMusica(req.params.musicaId);
+      res.json({ ok: true });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

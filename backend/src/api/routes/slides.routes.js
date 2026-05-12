@@ -11,6 +11,7 @@ const upload = multer({
 router.get('/slides-login', (req, res) => controller.listar(req, res));
 router.get('/slides-login/admin', autenticarToken, (req, res) => controller.listarAdmin(req, res));
 router.post('/slides-login', autenticarToken, upload.single('imagem'), (req, res) => controller.criar(req, res));
+router.patch('/slides-login/:id', autenticarToken, upload.single('imagem'), (req, res) => controller.atualizar(req, res));
 router.patch('/slides-login/:id/toggle', autenticarToken, (req, res) => controller.toggleAtivo(req, res));
 router.delete('/slides-login/:id', autenticarToken, (req, res) => controller.deletar(req, res));
 

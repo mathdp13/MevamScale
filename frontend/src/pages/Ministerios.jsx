@@ -57,7 +57,7 @@ function Ministerios() {
       carregarMinisterios();
       setOnboardingMinisterioId(res.data.ministerioId);
     } catch {
-      toast.error('Codigo invalido ou voce ja faz parte desse ministerio!');
+      toast.error('Codigo invalido ou você ja faz parte desse ministerio!');
     }
   };
 
@@ -105,7 +105,7 @@ function Ministerios() {
             </div>
           ))}
           {ministerios.length === 0 && (
-            <p className="text-gray-600 italic text-sm col-span-3">Voce ainda nao participa de nenhum ministerio.</p>
+            <p className="text-gray-600 italic text-sm col-span-3">Você ainda nao participa de nenhum ministerio.</p>
           )}
         </div>
       </main>

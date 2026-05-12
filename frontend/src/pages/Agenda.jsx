@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast, { Toaster } from 'react-hot-toast';
-import { ChevronLeft, ChevronRight, AlertCircle, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertCircle, X, CalendarPlus } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
 
@@ -41,7 +41,7 @@ function getTipoEvento(dia, mes, ano) {
   return null;
 }
 
-function Calendario({ escalas, mes, ano, mesLabel }) {
+function Calendario({ escalas, mes, ano, mesLabel, meusEventosDias = new Set() }) {
   const [diaSelecionado, setDiaSelecionado] = useState(null);
   const [ministerioAberto, setMinisterioAberto] = useState(null);
   const dataHoje = new Date();
@@ -108,7 +108,11 @@ function Calendario({ escalas, mes, ano, mesLabel }) {
             return (
               <div
                 key={i}
-                onClick={() => dia && tipo && setDiaSelecionado(selecionado ? null : dia)}
+                onClick={() => {
+                if (!dia || !tipo) return;
+                setMinisterioAberto(null);
+                setDiaSelecionado(selecionado ? null : dia);
+              }}
                 className={[
                   'relative min-h-[52px] flex flex-col items-center justify-start pt-2 pb-1',
                   dia && tipo ? 'cursor-pointer' : '',
@@ -128,9 +132,10 @@ function Calendario({ escalas, mes, ano, mesLabel }) {
                     {tipo && (
                       <span className="text-[8px] text-blue-500 font-bold mt-0.5">{tipo.hora}</span>
                     )}
-                    {temEscala && (
-                      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2">
-                        <div className="w-1 h-1 rounded-full bg-blue-400" />
+                    {(temEscala || meusEventosDias.has(dia)) && (
+                      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex gap-0.5">
+                        {temEscala && <div className="w-1 h-1 rounded-full bg-blue-400" />}
+                        {meusEventosDias.has(dia) && <div className="w-1 h-1 rounded-full bg-green-400" />}
                       </div>
                     )}
                   </>
@@ -238,9 +243,11 @@ function Agenda() {
   const [motivoSub, setMotivoSub] = useState('');
   const [prazosAtivos, setPrazosAtivos] = useState([]);
   const [showAusencias, setShowAusencias] = useState(null);
-  const [escalasMes, setEscalasMes] = useState([]);
   const [minhasAusencias, setMinhasAusencias] = useState([]);
   const [carregandoAus, setCarregandoAus] = useState(false);
+  const [todosMinisterios, setTodosMinisterios] = useState([]);
+  const [ministerioFiltro, setMinisterioFiltro] = useState(null);
+  const [substituicoesEnviadas, setSubstituicoesEnviadas] = useState(new Set());
 
   const carregarPrazos = async (m, a) => {
     if (!logado || !user.id) return;
@@ -272,9 +279,17 @@ function Agenda() {
   const carregarGeral = async (m, a) => {
     const key = cacheKey('geral', 'all', m, a);
     try {
-      const res = await api.get(`/agenda/geral?mes=${m}&ano=${a}`);
-      setEscalasGerais(res.data);
-      localStorage.setItem(key, JSON.stringify(res.data));
+      const [resEscalas, resMin] = await Promise.allSettled([
+        api.get(`/agenda/geral?mes=${m}&ano=${a}`),
+        api.get('/ministerios'),
+      ]);
+      if (resEscalas.status === 'fulfilled') {
+        setEscalasGerais(resEscalas.value.data);
+        localStorage.setItem(key, JSON.stringify(resEscalas.value.data));
+      }
+      if (resMin.status === 'fulfilled') {
+        setTodosMinisterios(resMin.value.data);
+      }
     } catch {
       toast.error('Erro ao carregar agenda geral.');
     }
@@ -302,23 +317,19 @@ function Agenda() {
   const abrirAusencias = async (prazo) => {
     setShowAusencias(prazo);
     setCarregandoAus(true);
+    setMinhasAusencias([]);
     try {
-      const [r1, r2] = await Promise.all([
-        api.get(`/escalas?ministerioId=${prazo.ministerio_id}&mes=${mes}&ano=${ano}`),
-        api.get(`/ausencias?ministerioId=${prazo.ministerio_id}&mes=${mes}&ano=${ano}`),
-      ]);
-      setEscalasMes(r1.data);
-      setMinhasAusencias(r2.data.filter((a) => a.usuario_id === user.id));
+      const r = await api.get(`/ausencias?ministerioId=${prazo.ministerio_id}&mes=${mes}&ano=${ano}`);
+      setMinhasAusencias(r.data.filter((a) => a.usuario_id === user.id));
     } catch {
-      toast.error('Erro ao carregar escalas.');
+      toast.error('Erro ao carregar disponibilidade.');
     } finally {
       setCarregandoAus(false);
     }
   };
 
-  const toggleAusencia = async (escala) => {
-    const dataStr = escala.data_evento.split('T')[0];
-    const existente = minhasAusencias.find((a) => a.data?.split('T')[0] === dataStr);
+  const toggleDia = async (dateStr) => {
+    const existente = minhasAusencias.find((a) => a.data?.split('T')[0] === dateStr);
     try {
       if (existente) {
         await api.delete(`/ausencias/${existente.id}`);
@@ -327,12 +338,12 @@ function Agenda() {
         const res = await api.post('/ausencias', {
           usuario_id: user.id,
           ministerio_id: showAusencias.ministerio_id,
-          data: dataStr,
+          data: dateStr,
         });
         setMinhasAusencias((prev) => [...prev, res.data]);
       }
     } catch {
-      toast.error('Erro ao atualizar ausencia.');
+      toast.error('Erro ao atualizar disponibilidade.');
     }
   };
 
@@ -344,12 +355,42 @@ function Agenda() {
         solicitante_id: user.id,
         motivo: motivoSub.trim() || null,
       });
+      setSubstituicoesEnviadas((prev) => new Set([...prev, showSub.id]));
       toast.success('Pedido enviado ao admin!');
       setShowSub(null);
       setMotivoSub('');
     } catch {
       toast.error('Erro ao enviar pedido.');
     }
+  };
+
+  const adicionarAoCalendario = (evento) => {
+    const data = evento.data_evento.split('T')[0].replace(/-/g, '');
+    const linhas = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//MevamScale//PT',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      'BEGIN:VEVENT',
+      `UID:escala-${evento.id}@mevamscale`,
+      `DTSTART;VALUE=DATE:${data}`,
+      `DTEND;VALUE=DATE:${data}`,
+      `SUMMARY:${evento.nome} — ${evento.ministerio_nome}`,
+      evento.funcao_nome ? `DESCRIPTION:Função\\: ${evento.funcao_nome}` : '',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].filter(Boolean).join('\r\n');
+
+    const blob = new Blob([linhas], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `escala-${evento.id}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const confirmar = async (evento) => {
@@ -471,12 +512,23 @@ function Agenda() {
                       {e.confirmado ? 'Confirmado' : 'Confirmar'}
                     </button>
                     <button
-                      onClick={() => { setShowSub(e); setMotivoSub(''); }}
-                      className="text-gray-600 hover:text-orange-400 transition-colors"
-                      title="Pedir substituto"
+                      onClick={() => adicionarAoCalendario(e)}
+                      className="text-gray-600 hover:text-blue-400 transition-colors"
+                      title="Adicionar ao calendário"
                     >
-                      <AlertCircle size={15} />
+                      <CalendarPlus size={15} />
                     </button>
+                    {substituicoesEnviadas.has(e.id) ? (
+                      <span className="text-[10px] text-orange-400 font-bold">Pedido enviado</span>
+                    ) : (
+                      <button
+                        onClick={() => { setShowSub(e); setMotivoSub(''); }}
+                        className="text-gray-600 hover:text-orange-400 transition-colors"
+                        title="Pedir substituto"
+                      >
+                        <AlertCircle size={15} />
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -488,7 +540,47 @@ function Agenda() {
         )}
 
         {modo === 'geral' && (
-          <Calendario key={`${mes}-${ano}`} escalas={escalasGerais} mes={mes} ano={ano} mesLabel={MESES[mes - 1]} />
+          <>
+            {todosMinisterios.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-5">
+                <button
+                  onClick={() => setMinisterioFiltro(null)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    ministerioFiltro === null ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  Todos
+                </button>
+                {todosMinisterios.map((m) => {
+                  const count = escalasGerais.filter((e) => e.ministerio_id === m.id).length;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => setMinisterioFiltro(ministerioFiltro === m.id ? null : m.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                        ministerioFiltro === m.id ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      {m.nome}
+                      {count > 0 && (
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${ministerioFiltro === m.id ? 'bg-white/20' : 'bg-white/10'}`}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <Calendario
+              key={`${mes}-${ano}-${ministerioFiltro}`}
+              escalas={ministerioFiltro ? escalasGerais.filter((e) => e.ministerio_id === ministerioFiltro) : escalasGerais}
+              mes={mes}
+              ano={ano}
+              mesLabel={MESES[mes - 1]}
+              meusEventosDias={new Set(eventos.filter((e) => e.data_evento).map((e) => parseInt(e.data_evento.split('T')[0].split('-')[2], 10)))}
+            />
+          </>
         )}
       </main>
       <BottomNav />
@@ -506,41 +598,55 @@ function Agenda() {
                 <X size={18} />
               </button>
             </div>
-            <div className="flex-grow overflow-y-auto p-4 space-y-2">
+            <div className="flex-grow overflow-y-auto p-4">
               {carregandoAus ? (
-                <p className="text-gray-600 text-sm text-center py-4">Carregando...</p>
-              ) : escalasMes.length === 0 ? (
-                <p className="text-gray-600 text-sm italic py-2">Nenhuma escala neste mes.</p>
-              ) : escalasMes.map((e) => {
-                const dataStr = e.data_evento.split('T')[0];
-                const [, em, ed] = dataStr.split('-');
-                const ausente = minhasAusencias.some((a) => a.data?.split('T')[0] === dataStr);
-                return (
-                  <button
-                    key={e.id}
-                    onClick={() => toggleAusencia(e)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all text-left ${
-                      ausente ? 'bg-red-500/10 border-red-500/30' : 'bg-white/3 border-transparent hover:bg-white/5'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0 ${ausente ? 'bg-red-500/20' : 'bg-blue-600/15'}`}>
-                      <span className={`text-sm font-bold leading-none ${ausente ? 'text-red-400' : 'text-blue-400'}`}>{ed}</span>
-                      <span className={`text-[9px] font-bold ${ausente ? 'text-red-600' : 'text-blue-600'}`}>/{em}</span>
+                <p className="text-gray-600 text-sm text-center py-6">Carregando...</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-7 mb-2">
+                    {DIAS_SEMANA.map((d) => (
+                      <div key={d} className="text-center text-[9px] font-bold text-gray-600 uppercase py-1">{d}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1">
+                    {buildCalendar(mes, ano).map((dia, idx) => {
+                      if (!dia) return <div key={idx} />;
+                      const dateStr = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+                      const ausente = minhasAusencias.some((a) => a.data?.split('T')[0] === dateStr);
+                      const hoje = new Date();
+                      const ehHoje = dia === hoje.getDate() && mes === hoje.getMonth() + 1 && ano === hoje.getFullYear();
+                      return (
+                        <button
+                          key={dia}
+                          onClick={() => toggleDia(dateStr)}
+                          className={`aspect-square rounded-xl flex items-center justify-center text-sm font-bold transition-all active:scale-90 ${
+                            ausente
+                              ? 'bg-red-500/25 text-red-400 ring-1 ring-red-500/40'
+                              : ehHoje
+                                ? 'bg-blue-600/20 text-blue-400 ring-1 ring-blue-500/40'
+                                : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                          }`}
+                        >
+                          {dia}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-4 mt-4 justify-center">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-sm bg-white/10" />
+                      <span className="text-[10px] text-gray-500">Disponivel</span>
                     </div>
-                    <div className="flex-grow min-w-0">
-                      <p className="text-sm font-bold text-white truncate">{e.nome}</p>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-sm bg-red-500/30" />
+                      <span className="text-[10px] text-gray-500">Indisponivel</span>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg flex-shrink-0 ${
-                      ausente ? 'bg-red-500/20 text-red-400' : 'bg-green-500/15 text-green-400'
-                    }`}>
-                      {ausente ? 'Não posso' : 'Disponivel'}
-                    </span>
-                  </button>
-                );
-              })}
+                  </div>
+                </>
+              )}
             </div>
             <div className="p-4 border-t border-white/5">
-              <p className="text-center text-[10px] text-gray-600">Toque num dia para alternar sua disponibilidade</p>
+              <p className="text-center text-[10px] text-gray-600">Toque num dia para marcar indisponibilidade</p>
             </div>
           </div>
         </div>

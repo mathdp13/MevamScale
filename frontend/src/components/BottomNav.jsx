@@ -1,16 +1,21 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Church, Calendar, User } from 'lucide-react';
+import { Home, Church, Calendar, User, MonitorPlay } from 'lucide-react';
 
-const items = [
+const MAIN_ITEMS = [
   { label: 'Inicio', icon: Home, path: '/home' },
   { label: 'Ministerios', icon: Church, path: '/ministerios' },
   { label: 'Agenda', icon: Calendar, path: '/agenda' },
-  { label: 'Perfil', icon: User, path: '/perfil' },
 ];
+const PERFIL_ITEM = { label: 'Perfil', icon: User, path: '/perfil' };
+const SLIDES_ITEM = { label: 'Slides', icon: MonitorPlay, path: '/slides' };
 
 const BottomNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const items = (user.superadmin || user.pode_slides)
+    ? [...MAIN_ITEMS, SLIDES_ITEM, PERFIL_ITEM]
+    : [...MAIN_ITEMS, PERFIL_ITEM];
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#0a1a33] border-t border-white/5 flex z-40 safe-bottom">

@@ -33,5 +33,15 @@ router.delete('/ausencias/:id', (req, res) => ctrl.deletarAusencia(req, res));
 router.post('/substituicoes', (req, res) => ctrl.criarSubstituicao(req, res));
 router.get('/substituicoes', (req, res) => ctrl.listarSubstituicoes(req, res));
 router.put('/substituicoes/:id', (req, res) => ctrl.atualizarSubstituicao(req, res));
+router.patch('/substituicoes/:id/aprovar', (req, res) => ctrl.aprovarSubstituicao(req, res));
+
+// Setlist
+router.get('/escalas/:escalaId/setlist', (req, res) => ctrl.listarSetlist(req, res));
+router.post('/escalas/:escalaId/setlist', (req, res) => ctrl.adicionarSetlist(req, res));
+router.delete('/escalas/:escalaId/setlist/:itemId', (req, res) => ctrl.removerSetlist(req, res));
+
+// Chat
+router.get('/escalas/:escalaId/mensagens', (req, res) => ctrl.listarMensagens(req, res));
+router.post('/escalas/:escalaId/mensagens', (req, res) => ctrl.criarMensagem(req, res));
 
 module.exports = router;

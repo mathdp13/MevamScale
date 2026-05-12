@@ -42,6 +42,9 @@ function Ministerio() {
   const [substituicoes, setSubstituicoes] = useState([]);
   const [showEditFuncoes, setShowEditFuncoes] = useState(false);
   const [funcoesMinhasSel, setFuncoesMinhasSel] = useState([]);
+  const [showEscolherSub, setShowEscolherSub] = useState(null);
+  const [substitutoSel, setSubstitutoSel] = useState(null);
+  const [aprovandoSub, setAprovandoSub] = useState(false);
 
   const carregar = async () => {
     try {
@@ -155,7 +158,7 @@ function Ministerio() {
       });
       setShowEditFuncoes(false);
       carregar();
-      toast.success('Funcoes atualizadas!');
+      toast.success('Funções atualizadas!');
     } catch {
       toast.error('Erro ao salvar funcoes.');
     }
@@ -168,6 +171,22 @@ function Ministerio() {
       toast.success(status === 'aprovado' ? 'Pedido aprovado!' : 'Pedido rejeitado.');
     } catch {
       toast.error('Erro ao responder pedido.');
+    }
+  };
+
+  const aprovarComSubstituto = async () => {
+    if (!substitutoSel || !showEscolherSub) return;
+    setAprovandoSub(true);
+    try {
+      await api.patch(`/substituicoes/${showEscolherSub.id}/aprovar`, { substituto_id: substitutoSel });
+      setSubstituicoes((prev) => prev.filter((s) => s.id !== showEscolherSub.id));
+      setShowEscolherSub(null);
+      setSubstitutoSel(null);
+      toast.success('Substituto definido!');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Erro ao aprovar substituicao.');
+    } finally {
+      setAprovandoSub(false);
     }
   };
 
@@ -246,12 +265,14 @@ function Ministerio() {
                 <div className="flex items-center gap-2 group">
                   <h1 className="text-3xl font-bold tracking-tighter text-blue-400">{ministerio.nome}</h1>
                   {isAdmin && (
-                    <button
-                      onClick={() => { setNomeMinTemp(ministerio.nome); setEditandoNomeMin(true); }}
-                      className="text-gray-700 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Pencil size={14} />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => { setNomeMinTemp(ministerio.nome); setEditandoNomeMin(true); }}
+                        className="text-gray-700 hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </>
                   )}
                 </div>
               )}
@@ -286,7 +307,7 @@ function Ministerio() {
         {isAdmin && substituicoes.length > 0 && (
           <div className="mb-6 max-w-lg space-y-2">
             <p className="text-[10px] text-orange-400 font-bold uppercase tracking-widest mb-3">
-              {substituicoes.length} pedido{substituicoes.length > 1 ? 's' : ''} de substituto
+              {substituicoes.length} pedido{substituicoes.length > 1 ? 's' : ''} de substituição
             </p>
             {substituicoes.map((s) => (
               <div key={s.id} className="bg-orange-500/10 border border-orange-500/20 rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
@@ -299,10 +320,10 @@ function Ministerio() {
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   <button
-                    onClick={() => responderSubstituicao(s.id, 'aprovado')}
+                    onClick={() => { setShowEscolherSub(s); setSubstitutoSel(null); }}
                     className="text-xs font-bold bg-green-600/20 text-green-400 hover:bg-green-600/30 px-3 py-1.5 rounded-xl transition-all"
                   >
-                    Aprovar
+                    Substituto
                   </button>
                   <button
                     onClick={() => responderSubstituicao(s.id, 'rejeitado')}
@@ -326,7 +347,7 @@ function Ministerio() {
                 tabAtiva === tab ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-white'
               }`}
             >
-              {tab === 'stats' ? <BarChart2 size={14} /> : tab}
+              {tab === 'stats' ? <BarChart2 size={14} /> : { membros: 'Membros', escalas: 'Escalas', funcoes: 'Funções' }[tab] ?? tab}
             </button>
           ))}
         </div>
@@ -426,7 +447,7 @@ function Ministerio() {
         {tabAtiva === 'funcoes' && isAdmin && (
           <div className="max-w-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">Funcoes</h2>
+              <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">Funções</h2>
               <button
                 onClick={() => setShowAdicionarFuncao(!showAdicionarFuncao)}
                 className="text-blue-500 hover:text-blue-400 transition-colors"
@@ -532,6 +553,64 @@ function Ministerio() {
             >
               Salvar
             </button>
+          </div>
+        </div>
+      )}
+
+      {showEscolherSub && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0a1a33] w-full max-w-sm rounded-3xl border border-white/10 overflow-hidden">
+            <div className="p-6 border-b border-white/5 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-white">Escolher substituto</h3>
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  {showEscolherSub.solicitante_nome} · {showEscolherSub.escala_nome}
+                </p>
+              </div>
+              <button onClick={() => setShowEscolherSub(null)} className="text-gray-500 hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-4 space-y-2 max-h-72 overflow-y-auto">
+              {membros
+                .filter((m) => {
+                  if (m.id === showEscolherSub.solicitante_id) return false;
+                  if (!showEscolherSub.funcao_solicitante) return true;
+                  return m.funcoes?.some((f) => f.id === showEscolherSub.funcao_solicitante);
+                })
+                .map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setSubstitutoSel(m.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-left ${
+                      substitutoSel === m.id ? 'bg-blue-600/20 border border-blue-500/40' : 'bg-white/5 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-blue-600/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      {m.foto_url ? (
+                        <img src={m.foto_url} alt={m.nome} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs font-bold text-blue-400">{m.nome?.charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{m.nome}</p>
+                      {m.funcoes?.length > 0 && (
+                        <p className="text-[10px] text-gray-500 truncate">{m.funcoes.map((f) => f.nome).join(', ')}</p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+            </div>
+            <div className="p-4 border-t border-white/5">
+              <button
+                onClick={aprovarComSubstituto}
+                disabled={!substitutoSel || aprovandoSub}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-40"
+              >
+                {aprovandoSub ? 'Salvando...' : 'Confirmar substituto'}
+              </button>
+            </div>
           </div>
         </div>
       )}

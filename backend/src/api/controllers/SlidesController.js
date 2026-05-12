@@ -68,6 +68,37 @@ class SlidesController {
     }
   }
 
+  async atualizar(req, res) {
+    try {
+      const user = req.user;
+      if (!user?.superadmin && !user?.pode_slides) {
+        return res.status(403).json({ error: 'Sem permissao.' });
+      }
+      const { titulo, subtitulo, data_inicio, data_fim } = req.body;
+      let imagem_url_update = '';
+      if (req.file) {
+        const url = await uploadToCloudinary(req.file.buffer);
+        imagem_url_update = ', imagem_url = $6';
+        const { rows } = await pool.query(
+          `UPDATE slides_login SET titulo=$1, subtitulo=$2, data_inicio=$3, data_fim=$4${imagem_url_update}
+           WHERE id=$5 RETURNING *`,
+          [titulo, subtitulo || null, data_inicio || null, data_fim || null, req.params.id, url]
+        );
+        if (!rows[0]) return res.status(404).json({ error: 'Slide nao encontrado.' });
+        return res.json(rows[0]);
+      }
+      const { rows } = await pool.query(
+        `UPDATE slides_login SET titulo=$1, subtitulo=$2, data_inicio=$3, data_fim=$4
+         WHERE id=$5 RETURNING *`,
+        [titulo, subtitulo || null, data_inicio || null, data_fim || null, req.params.id]
+      );
+      if (!rows[0]) return res.status(404).json({ error: 'Slide nao encontrado.' });
+      res.json(rows[0]);
+    } catch (err) {
+      res.status(500).json({ error: 'Erro ao atualizar slide.', detail: err.message });
+    }
+  }
+
   async toggleAtivo(req, res) {
     try {
       const user = req.user;

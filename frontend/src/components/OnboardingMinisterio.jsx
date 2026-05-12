@@ -39,7 +39,7 @@ function OnboardingMinisterio({ ministerioId, onConcluir }) {
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-[#0a1a33] w-full max-w-sm rounded-3xl p-8 border border-white/10">
-        <h2 className="text-xl font-bold text-white mb-1">Voce entrou!</h2>
+        <h2 className="text-xl font-bold text-white mb-1">Você entrou!</h2>
         <p className="text-gray-500 text-sm mb-6">Selecione suas funcoes neste ministerio.</p>
 
         {funcoes.length === 0 ? (

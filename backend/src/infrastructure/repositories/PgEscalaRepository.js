@@ -218,10 +218,11 @@ class PgEscalaRepository {
   }
 
   async deletarAusencia({ id, usuarioId }) {
-    await pool.query(
-      'DELETE FROM pedidos_ausencia WHERE id = $1 AND usuario_id = $2',
-      [id, usuarioId]
-    );
+    if (usuarioId) {
+      await pool.query('DELETE FROM pedidos_ausencia WHERE id = $1 AND usuario_id = $2', [id, usuarioId]);
+    } else {
+      await pool.query('DELETE FROM pedidos_ausencia WHERE id = $1', [id]);
+    }
   }
 
   // ---------- Substituicoes ----------
@@ -239,11 +240,13 @@ class PgEscalaRepository {
     const { rows } = await pool.query(
       `SELECT ps.*, e.nome AS escala_nome, e.data_evento,
          u.nome AS solicitante_nome,
-         m.nome AS ministerio_nome
+         m.nome AS ministerio_nome,
+         em.funcao_id AS funcao_solicitante
        FROM pedidos_substituicao ps
        JOIN escalas e ON e.id = ps.escala_id
        JOIN ministerios m ON m.id = e.ministerio_id
        JOIN usuarios u ON u.id = ps.solicitante_id
+       LEFT JOIN escala_membros em ON em.escala_id = ps.escala_id AND em.usuario_id = ps.solicitante_id
        WHERE e.ministerio_id = $1
          AND ($2::text IS NULL OR ps.status = $2)
        ORDER BY ps.criado_em DESC`,
@@ -258,6 +261,28 @@ class PgEscalaRepository {
       [status, id]
     );
     return rows[0];
+  }
+
+  async buscarSubstituicaoPendente({ escalaId, solicitanteId }) {
+    const { rows } = await pool.query(
+      `SELECT id FROM pedidos_substituicao WHERE escala_id = $1 AND solicitante_id = $2 AND status = 'pendente'`,
+      [escalaId, solicitanteId]
+    );
+    return rows[0] || null;
+  }
+
+  async buscarSubstituicaoComDetalhes(id) {
+    const { rows } = await pool.query(
+      `SELECT ps.id, ps.escala_id, ps.solicitante_id, ps.motivo, ps.status,
+         e.ministerio_id,
+         em.funcao_id AS funcao_solicitante
+       FROM pedidos_substituicao ps
+       JOIN escalas e ON e.id = ps.escala_id
+       LEFT JOIN escala_membros em ON em.escala_id = ps.escala_id AND em.usuario_id = ps.solicitante_id
+       WHERE ps.id = $1`,
+      [id]
+    );
+    return rows[0] || null;
   }
 
   async listarStats({ ministerioId }) {
@@ -295,6 +320,67 @@ class PgEscalaRepository {
       [usuarioId, mes, ano]
     );
     return rows;
+  }
+
+  async buscarMinisterio(ministerioId) {
+    const { rows } = await pool.query(
+      'SELECT id, escalar_indisponiveis, auto_gerar_mes FROM ministerios WHERE id = $1',
+      [ministerioId]
+    );
+    return rows[0] || null;
+  }
+
+  // ---------- Setlist ----------
+
+  async listarSetlist(escalaId) {
+    const { rows } = await pool.query(
+      `SELECT es.id, es.ordem, es.tom, m.id AS musica_id, m.nome, m.artista, m.link_cifra
+       FROM escala_setlist es
+       JOIN musicas m ON m.id = es.musica_id
+       WHERE es.escala_id = $1
+       ORDER BY es.ordem ASC, es.id ASC`,
+      [escalaId]
+    );
+    return rows;
+  }
+
+  async adicionarSetlist({ escalaId, musicaId, tom }) {
+    const { rows } = await pool.query(
+      `INSERT INTO escala_setlist (escala_id, musica_id, tom)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (escala_id, musica_id) DO NOTHING
+       RETURNING *`,
+      [escalaId, musicaId, tom || null]
+    );
+    return rows[0] || null;
+  }
+
+  async removerSetlist(id) {
+    await pool.query('DELETE FROM escala_setlist WHERE id = $1', [id]);
+  }
+
+  // ---------- Chat ----------
+
+  async listarMensagens(escalaId) {
+    const { rows } = await pool.query(
+      `SELECT em.id, em.texto, em.criado_em,
+        u.id AS usuario_id, u.nome AS usuario_nome, u.foto_url
+       FROM escala_mensagens em
+       LEFT JOIN usuarios u ON u.id = em.usuario_id
+       WHERE em.escala_id = $1
+       ORDER BY em.criado_em ASC`,
+      [escalaId]
+    );
+    return rows;
+  }
+
+  async criarMensagem({ escalaId, usuarioId, texto }) {
+    const { rows } = await pool.query(
+      `INSERT INTO escala_mensagens (escala_id, usuario_id, texto)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [escalaId, usuarioId, texto]
+    );
+    return rows[0];
   }
 }
 

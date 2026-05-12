@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import html2canvas from 'html2canvas';
-import { ChevronLeft, ChevronRight, Plus, Trash2, RefreshCw, X, ImageDown, Settings, AlertCircle, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, RefreshCw, X, ImageDown, Settings, AlertCircle, Users, ToggleLeft, ToggleRight } from 'lucide-react';
 import EscalaDetalhe from './EscalaDetalhe';
 
 const MESES = ['Janeiro','Fevereiro','Marco','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -18,10 +18,12 @@ function salvarCache(key, dados) {
 
 function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
   const agora = new Date();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [mes, setMes] = useState(agora.getMonth() + 1);
   const [ano, setAno] = useState(agora.getFullYear());
   const [escalas, setEscalas] = useState(() => lerCache(`escalas_${ministerioId}_${agora.getMonth() + 1}_${agora.getFullYear()}`));
   const [tiposCulto, setTiposCulto] = useState(() => lerCache(`tipos_culto_${ministerioId}`));
+  const [minhaAgenda, setMinhaAgenda] = useState({});
   const [escalaSelecionada, setEscalaSelecionada] = useState(null);
 
   const [showNovaEscala, setShowNovaEscala] = useState(false);
@@ -35,6 +37,7 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
   const [ausenciasMes, setAusenciasMes] = useState([]);
   const [configDiaLimite, setConfigDiaLimite] = useState('');
   const [salvandoConfig, setSalvandoConfig] = useState(false);
+  const [autoGerarMes, setAutoGerarMes] = useState(false);
   const [adicionandoFormacao, setAdicionandoFormacao] = useState(null);
   const [novaFormacao, setNovaFormacao] = useState({ funcao_id: '', quantidade: 1 });
   const tabelaRef = useRef(null);
@@ -71,6 +74,17 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
   useEffect(() => {
     setEscalas(lerCache(`escalas_${ministerioId}_${mes}_${ano}`));
     carregarEscalas();
+    if (user.id) {
+      api.get(`/agenda?usuarioId=${user.id}&mes=${mes}&ano=${ano}`)
+        .then((res) => {
+          const mapa = {};
+          res.data
+            .filter((a) => String(a.ministerio_id) === String(ministerioId))
+            .forEach((a) => { mapa[a.id] = a.funcao_nome; });
+          setMinhaAgenda(mapa);
+        })
+        .catch(() => {});
+    }
   }, [mes, ano, ministerioId]);
 
   useEffect(() => {
@@ -122,6 +136,7 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
         api.get(`/ausencias?ministerioId=${ministerioId}&mes=${mes}&ano=${ano}`),
       ]);
       setConfigDiaLimite(resMin.data?.dia_limite_ausencias ? String(resMin.data.dia_limite_ausencias) : '');
+      setAutoGerarMes(resMin.data?.auto_gerar_mes ?? false);
       setAusenciasMes(resAusencias.data || []);
     } catch {}
   };
@@ -137,6 +152,17 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
       toast.error('Erro ao salvar prazo.');
     } finally {
       setSalvandoConfig(false);
+    }
+  };
+
+  const toggleAutoGerar = async () => {
+    const novoValor = !autoGerarMes;
+    setAutoGerarMes(novoValor);
+    try {
+      await api.patch(`/ministerios/${ministerioId}/config`, { auto_gerar_mes: novoValor });
+    } catch {
+      setAutoGerarMes(!novoValor);
+      toast.error('Erro ao salvar configuracao.');
     }
   };
 
@@ -265,7 +291,7 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
               onClick={abrirConfigMes}
               className="flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-white transition-colors px-3 py-2 rounded-xl hover:bg-white/5"
             >
-              <Settings size={13} /> Configurar
+              <Settings size={13} /> Ajuste do mês
             </button>
             <button
               onClick={exportarMesComDados}
@@ -302,6 +328,11 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
                 {e.total_membros} {e.total_membros === 1 ? 'membro' : 'membros'}
                 {e.data_ensaio && ` · Ensaio ${formatarData(e.data_ensaio)}`}
               </p>
+              {minhaAgenda[e.id] !== undefined && (
+                <p className="text-green-400 text-[10px] font-bold mt-0.5">
+                  Você está escalado{minhaAgenda[e.id] ? ` · ${minhaAgenda[e.id]}` : ''}
+                </p>
+              )}
             </div>
             {isAdmin && (
               <button
@@ -413,18 +444,38 @@ function EscalasTab({ ministerioId, isAdmin, membros, funcoes }) {
               })()}
             </div>
 
-            {/* Botao gerar escalas */}
+            {/* Toggle + botao gerar escalas */}
             <div className="p-6 border-t border-white/5 flex-shrink-0">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-sm font-bold text-white">Geracao automatica</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Permite gerar as escalas do mes com o lineup configurado.
+                  </p>
+                </div>
+                <button
+                  onClick={toggleAutoGerar}
+                  className="flex-shrink-0 text-gray-600 hover:text-blue-400 transition-colors"
+                >
+                  {autoGerarMes
+                    ? <ToggleRight size={32} className="text-blue-400" />
+                    : <ToggleLeft size={32} />}
+                </button>
+              </div>
               <button
                 onClick={gerarMesDoConfig}
-                disabled={gerando}
-                className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                disabled={gerando || !autoGerarMes}
+                className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                  autoGerarMes
+                    ? 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95 disabled:opacity-50'
+                    : 'bg-white/5 text-gray-600 cursor-not-allowed'
+                }`}
               >
                 <RefreshCw size={14} className={gerando ? 'animate-spin' : ''} />
                 {gerando ? 'Gerando...' : `Gerar escalas de ${MESES[mes - 1]}`}
               </button>
               <p className="text-center text-[10px] text-gray-600 mt-2">
-                Cria os cultos do mes com o lineup acima, excluindo ausencias.
+                {autoGerarMes ? 'Gera os cultos do mes respeitando as marcacoes de indisponibilidade.' : 'Ative a geracao automatica para liberar este botao.'}
               </p>
             </div>
           </div>

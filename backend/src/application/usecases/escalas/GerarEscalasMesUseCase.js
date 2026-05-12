@@ -47,6 +47,9 @@ class GerarEscalasMesUseCase {
       }
     }
 
+    const ministerio = await this.escalaRepository.buscarMinisterio(ministerioId);
+    const escalarIndisponiveis = ministerio?.escalar_indisponiveis === true;
+
     const lineupCompleto = await this.escalaRepository.buscarLineupCompleto(ministerioId);
     let populadas = 0;
 
@@ -55,13 +58,18 @@ class GerarEscalasMesUseCase {
       const todas = await this.escalaRepository.listarEscalas({ ministerioId, mes: m, ano: a });
       const semMembros = todas.filter((e) => e.total_membros === 0);
 
+      // contagem de escalas atribuidas a cada membro no mes (para rotacao justa)
+      const contagemMes = {};
+
       for (const escala of semMembros) {
         const dataEscala = new Date(escala.data_evento).toISOString().split('T')[0];
-        const ausentes = new Set(
-          ausencias
-            .filter((au) => new Date(au.data).toISOString().split('T')[0] === dataEscala)
-            .map((au) => au.usuario_id)
-        );
+        const ausentes = escalarIndisponiveis
+          ? new Set()
+          : new Set(
+              ausencias
+                .filter((au) => new Date(au.data).toISOString().split('T')[0] === dataEscala)
+                .map((au) => au.usuario_id)
+            );
 
         const tipo = tipoMap.get(escala.tipo_culto_id);
         const formacao = (tipo?.formacao || []).filter((f) => f.funcao_id);
@@ -70,13 +78,14 @@ class GerarEscalasMesUseCase {
         if (formacao.length > 0) {
           const jaAdicionados = new Set();
           for (const item of formacao) {
-            const candidatos = lineupCompleto.filter(
-              (lm) => lm.funcao_id === item.funcao_id && !ausentes.has(lm.usuario_id) && !jaAdicionados.has(lm.usuario_id)
-            );
+            const candidatos = lineupCompleto
+              .filter((lm) => lm.funcao_id === item.funcao_id && !ausentes.has(lm.usuario_id) && !jaAdicionados.has(lm.usuario_id))
+              .sort((a, b) => (contagemMes[a.usuario_id] || 0) - (contagemMes[b.usuario_id] || 0));
             const selecionados = candidatos.slice(0, item.quantidade);
             await Promise.all(
               selecionados.map((lm) => {
                 jaAdicionados.add(lm.usuario_id);
+                contagemMes[lm.usuario_id] = (contagemMes[lm.usuario_id] || 0) + 1;
                 return this.escalaRepository.adicionarMembro({ escalaId: escala.id, usuarioId: lm.usuario_id, funcaoId: lm.funcao_id }).catch(() => {});
               })
             );

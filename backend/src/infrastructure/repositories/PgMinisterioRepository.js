@@ -148,6 +148,30 @@ class PgMinisterioRepository {
     return rows;
   }
 
+  async listarTodos() {
+    const { rows } = await pool.query(
+      'SELECT id, nome, icone, categoria FROM ministerios ORDER BY nome ASC'
+    );
+    return rows;
+  }
+
+  async atualizarConfig(ministerioId, { auto_gerar_mes, escalar_indisponiveis }) {
+    const { rows } = await pool.query(
+      `UPDATE ministerios
+       SET auto_gerar_mes = COALESCE($1, auto_gerar_mes),
+           escalar_indisponiveis = COALESCE($2, escalar_indisponiveis)
+       WHERE id = $3
+       RETURNING id, auto_gerar_mes, escalar_indisponiveis`,
+      [
+        auto_gerar_mes !== undefined ? auto_gerar_mes : null,
+        escalar_indisponiveis !== undefined ? escalar_indisponiveis : null,
+        ministerioId,
+      ]
+    );
+    if (!rows[0]) throw { status: 404, message: 'Ministerio nao encontrado.' };
+    return rows[0];
+  }
+
   async getEscalaConfig({ ministerioId, mes, ano }) {
     const { rows } = await pool.query(
       'SELECT * FROM escala_config WHERE ministerio_id = $1 AND mes = $2 AND ano = $3',
